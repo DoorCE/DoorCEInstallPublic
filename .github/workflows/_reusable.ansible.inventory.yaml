@@ -22,20 +22,22 @@ jobs:
       name: ${{ steps.set-name.outputs.artifact_name }}
       hosts: ${{ steps.get-hosts.outputs.matrix }}
     steps:
-      # - name: Configure SSH to use port 443
-      #   run: |
-      #     mkdir -p ~/.ssh
-      #     echo "Host github.com
-      #       Hostname ssh.github.com
-      #       # Port 22 is often blocked, so we use 443 as an alternative
-      #       Port 443
-      #       User git" > ~/.ssh/config
-      #     chmod 600 ~/.ssh/config
-
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
           clean: true
+
+      - name: Checkout DoorCEInstallPublic
+        uses: actions/checkout@v7
+        with:
+          repository: DoorCE/DoorCEInstallPublic
+          ref: ${{ inputs.branch || github.ref_name }}
+          path: DoorCEInstallPublic
+          clean: true
+          
+      - name: Copy Config Yaml to DoorCEInstallPublic
+        run: |
+          cp config.yaml DoorCEInstallPublic/config.yaml
 
       - name: Set Artifact Name
         id: set-name
@@ -43,11 +45,13 @@ jobs:
         run: echo "artifact_name=inv-${{ github.run_id }}" >> $GITHUB_OUTPUT
 
       - name: Generate Inventory
+        working-directory: DoorCEInstallPublic
         run: |
           ansible-playbook ansible/inventory.yaml -e "config_file_path=../config.yaml"
 
       - name: Generate Summary Report
         if: always()
+        working-directory: DoorCEInstallPublic
         run: |
           echo "### 🗒️ Inventory Generation Report" >> $GITHUB_STEP_SUMMARY
           echo "Artifact Name: \`${{ steps.set-name.outputs.artifact_name }}\`" >> $GITHUB_STEP_SUMMARY
@@ -64,6 +68,7 @@ jobs:
 
       - name: Extract hosts for Matrix
         id: get-hosts
+        working-directory: DoorCEInstallPublic
         run: |
           HOSTS=$(ansible-inventory -i inventory.ini --list | jq -c '.host.hosts')
           echo "matrix=$HOSTS" >> $GITHUB_OUTPUT
@@ -72,4 +77,4 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.set-name.outputs.artifact_name }}
-          path: inventory.ini
+          path: DoorCEInstallPublic/inventory.ini

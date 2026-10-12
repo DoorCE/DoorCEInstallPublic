@@ -16,6 +16,10 @@ on:
       target_host:
         required: true
         type: string
+      branch:
+        required: false
+        type: string
+        default: 'main'
 
 jobs:
   ansible-run:
@@ -27,10 +31,23 @@ jobs:
         with:
           clean: true
 
+      - name: Checkout DoorCEInstallPublic
+        uses: actions/checkout@v7
+        with:
+          repository: DoorCE/DoorCEInstallPublic
+          ref: ${{ inputs.branch || github.ref_name }}
+          path: DoorCEInstallPublic
+          clean: true
+          
+      - name: Copy Config Yaml to DoorCEInstallPublic
+        run: |
+          cp config.yaml DoorCEInstallPublic/config.yaml
+
       - name: Download Inventory Artifact
         uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.inventory_artifact }}
+          path: DoorCEInstallPublic/
 
       - name: Determine Ansible Flags
         id: flags
@@ -41,18 +58,13 @@ jobs:
             echo "opts=--diff" >> $GITHUB_OUTPUT
           fi
           
-      - name: Use local SSH key
-        run: |
-          eval $(ssh-agent -s)
-          ssh-add /home/ubuntu/.ssh/id_ed25519
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
-
       - name: Run Ansible Playbook
         env:
           ANSIBLE_STDOUT_CALLBACK: yaml
           ANSIBLE_FORCE_COLOR: 'true'
           ANSIBLE_ERROR_ON_EMPTY_CONFIG: 'True'
           ANSIBLE_HOST_PATTERN_MISMATCH: 'error'
+        working-directory: DoorCEInstallPublic
         run: |
           # Enable strict error handling and ensure that any failure in the pipeline is properly captured
           set -euo pipefail
