@@ -1,0 +1,22 @@
+name: Tool - Purge Old Docker Images
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Docker Resource Cleanup
+        run: |
+          _HOST=$(yq -r '.zones.zone1.master' config.yaml)
+          
+          _HOST_IP=$(yq -r --arg h "$_HOST" '.zones.zone1.members[$h].address' config.yaml)
+          _HOST_USER=$(yq -r --arg h "$_HOST" '.zones.zone1.members[$h].user' config.yaml)
+          
+          ssh $_HOST_USER@$_HOST_IP incus exec doorce -- docker system prune -a -f
+          ssh $_HOST_USER@$_HOST_IP incus exec doorce -- docker image prune -a -f
+
+          df -h

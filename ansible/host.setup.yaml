@@ -1,0 +1,139 @@
+- name: Manage Host Provisioning Files
+  hosts: host
+  become: yes
+  tasks:
+
+    - name: Configure SSH to disable password authentication
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/99-disable-passwords.conf
+        mode: '0644'
+        owner: root
+        group: root
+        content: |
+          # Disable password authentication to enforce key-based auth
+          PubkeyAuthentication yes
+
+          # Disable password authentication
+          PasswordAuthentication no
+
+          # Disable interactive methods
+          KbdInteractiveAuthentication no
+          ChallengeResponseAuthentication no
+
+          # Additional security hardening
+          PermitEmptyPasswords no
+      notify: Restart SSH
+
+    - name: Sync setup.github-runner.sh to /usr/bin
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/setup.github-runner.sh"
+        dest: "/usr/bin/setup.github-runner.sh"
+        mode: '0755'
+        owner: root
+        group: root
+        directory_mode: '0755'
+
+    - name: Enable IPv4 forwarding in sysctl
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/99-ip-forward.conf
+        mode: '0644'
+        owner: root
+        group: root
+        content: "net.ipv4.ip_forward = 1"
+      notify: Apply sysctl settings
+
+    - name: Create nftables bridge controller script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/nft-bridge-ctrl.sh
+        mode: '0755'
+        owner: root
+        group: root
+        content: |
+          #!/bin/bash
+          ACTION=$1
+          INTERFACE=$2
+
+          if [ "$ACTION" == "add" ]; then
+              /usr/sbin/nft insert rule inet filter input iifname "$INTERFACE" accept
+              /usr/sbin/nft insert rule inet filter forward iifname "$INTERFACE" accept
+              /usr/sbin/nft insert rule inet filter forward oifname "$INTERFACE" accept
+              /usr/sbin/nft insert rule inet filter output oifname "$INTERFACE" accept
+          elif [ "$ACTION" == "remove" ]; then
+              /usr/sbin/nft delete rule inet filter input iifname "$INTERFACE" accept 2>/dev/null || true
+              /usr/sbin/nft delete rule inet filter forward iifname "$INTERFACE" accept 2>/dev/null || true
+              /usr/sbin/nft delete rule inet filter forward oifname "$INTERFACE" accept 2>/dev/null || true
+              /usr/sbin/nft delete rule inet filter output oifname "$INTERFACE" accept 2>/dev/null || true
+          fi
+
+    - name: Create udev rules for Incus interfaces
+      ansible.builtin.copy:
+        dest: /etc/udev/rules.d/99-incus-bridge.rules
+        mode: '0644'
+        owner: root
+        group: root
+        content: |
+          SUBSYSTEM=="net", KERNEL=="incus-*", ACTION=="add", RUN+="/usr/local/bin/nft-bridge-ctrl.sh add %k"
+          SUBSYSTEM=="net", KERNEL=="incus-*", ACTION=="remove", RUN+="/usr/local/bin/nft-bridge-ctrl.sh remove %k"
+
+    - name: Configure main nftables rules
+      ansible.builtin.copy:
+          dest: /etc/nftables.conf
+          mode: '0644'
+          owner: root
+          group: root
+          content: |
+            #!/usr/sbin/nft -f
+
+            add table inet filter
+            flush table inet filter
+            table inet filter {
+                chain input {
+                    type filter hook input priority filter; policy drop;
+                    ct state established,related accept
+                    iifname "lo" accept
+                    iifname "lxcbr0" accept
+                    icmp type echo-request accept
+                    # DYNAMIC WAN INTERFACE:
+                    iifname "{{ ansible_default_ipv4.interface }}" tcp dport { 22,80,443 } accept
+                }
+                chain forward {
+                    type filter hook forward priority filter; policy drop;
+                    ct state established,related accept
+                    # DYNAMIC WAN INTERFACE:
+                    iifname "lxcbr0" oifname "{{ ansible_default_ipv4.interface }}" accept
+                }
+                chain output {
+                    type filter hook output priority filter; policy accept;
+                }
+            }
+
+            add table ip nat
+            flush table ip nat
+            table ip nat {
+                chain postrouting {
+                    type nat hook postrouting priority srcnat; policy accept;
+                    # DYNAMIC WAN INTERFACE:
+                    oifname "{{ ansible_default_ipv4.interface }}" masquerade
+                }
+            }
+      notify: Reload nftables
+
+    - name: Ensure nftables is enabled and started
+      ansible.builtin.systemd:
+        name: nftables
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: Apply sysctl settings
+      ansible.builtin.command: sysctl -p /etc/sysctl.d/99-ip-forward.conf
+
+    - name: Reload nftables
+      ansible.builtin.systemd:
+        name: nftables
+        state: reloaded
+
+    - name: Restart SSH
+      ansible.builtin.systemd:
+        name: ssh
+        state: restarted

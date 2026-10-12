@@ -1,0 +1,50 @@
+zones:
+  zone1:
+    master: doorce-vm3
+    members:
+      doorce-vm3:
+        address: 172.16.16.1
+        user: debian
+    networks:
+      incus-udas:
+        address: 10.8.1.1/24
+        type: bridge
+        description: "Internal network with ACL"
+
+doorce:
+  external_url: https://dev3.pw.pl.doorce.net
+###########################################
+#
+# release 1.1.0
+#
+### UDAS components #######################
+# udas_server:
+#   repo_tag: "20260529-0095f17"
+#   version: "0095f17"
+#   environment: Development
+#   demo: true
+# udas_panel:
+#   repo_tag: "20260601-692b548"
+#   version: "692b548"
+#   keycloak:
+#     # default: empty string, which means no message will be shown on the login screen
+#     # if set, it will be shown as a small text under the UDAS logo on the login screen
+#     message: "Akuku! This is a custom message for the login screen. You can set it in config.yaml"
+# udas_appgen:
+#   repo_tag: "20260529-0095f17"
+#   version: "0095f17"
+# udas_appcmp:
+#   repo_tag: "20260521-8927c32"
+#   version: "8927c32"
+# udas_platform:
+#   repo_tag: "20260519-33d0a6c"
+#   version: "33d0a6c"
+### NON-UDAS Components ####################
+# doorce_mware:
+#   version: "2b22679"
+# doorce_portal:
+#   version: "ee378b6"
+# doorce_codehelper_frontend:
+#   version: "2026-03-17"
+# doorce_codehelper_backend:
+#   version: "2026-03-17"

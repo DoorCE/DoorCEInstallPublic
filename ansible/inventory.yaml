@@ -1,0 +1,20 @@
+- name: Generate Inventory File
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars:
+    config_file: "{{ config_file_path | default('../live/production.yaml') }}"
+  vars_files:
+    - "{{ config_file }}"
+
+  tasks:
+    - name: Debug loaded data
+      ansible.builtin.debug:
+        var: zones.members
+      when: ansible_check_mode
+
+    - name: Ensure inventory.ini is generated
+      ansible.builtin.template:
+        src: inventory.ini.j2
+        dest: "{{ playbook_dir }}/../inventory.ini"
+        mode: '0644'

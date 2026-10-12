@@ -1,0 +1,50 @@
+- name: Install Incus from Zabbly Stable
+  hosts: host
+  become: yes
+  tasks:
+    - name: Ensure dependencies are installed
+      ansible.builtin.apt:
+        name:
+          - curl
+          - gnupg
+          - ca-certificates
+        state: present
+        update_cache: yes
+
+    - name: Create directory for apt keyrings
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Zabbly GPG key
+      ansible.builtin.get_url:
+        url: https://pkgs.zabbly.com/key.asc
+        dest: /etc/apt/keyrings/zabbly.asc
+        checksum: sha256:f1adb44fdf82083f983a392b5b406d34e473dce3d66a51de3118cdc1f51d3f87
+        mode: '0644'
+
+    - name: Add Zabbly Incus repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/zabbly.asc] https://pkgs.zabbly.com/incus/stable {{ ansible_distribution_release }} main"
+        state: present
+        filename: zabbly-incus-stable
+
+    - name: Install Incus package
+      ansible.builtin.apt:
+        name: incus
+        state: present
+        update_cache: yes
+
+    - name: Get available groups
+      ansible.builtin.getent:
+        database: group
+
+    - name: Add user to administrative groups
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: "{{ item }}"
+        append: yes
+      when: item in getent_group
+      loop:
+        - incus-admin

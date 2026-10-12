@@ -1,0 +1,62 @@
+- name: Minimal Incus Init
+  hosts: host
+  become: yes
+  tasks:
+    - name: Initialize Incus as a New Cluster
+      ansible.builtin.shell:
+        cmd: |
+          cat <<EOF | sudo incus admin init --preseed
+          config:
+            core.https_address: "{{ ansible_host }}:8443"
+          networks: []
+          storage_pools: []
+          storage_volumes: []
+          profiles:
+            - name: default
+              description: ""
+              devices: {}
+              config: {}
+          cluster:
+            server_name: "{{ inventory_hostname }}"
+            enabled: true
+            member_config: []
+            cluster_address: ""
+            cluster_certificate: ""
+            server_address: ""
+            cluster_token: ""
+            cluster_certificate_path: ""
+          EOF
+      register: init_result
+      changed_when: "'already configured' not in init_result.stderr and 'already clustered' not in init_result.stderr"
+      failed_when: 
+        - init_result.rc != 0 
+        - "'already configured' not in init_result.stderr"
+        - "'already clustered' not in init_result.stderr"
+
+    - name: Check if tofu-client is already trusted
+      ansible.builtin.shell:
+        cmd: |
+          incus config trust list --format json | jq -e '.[] | select(.name == "tofu-client")' > /dev/null
+      register: tofu_client_check
+      failed_when: false
+      changed_when: false
+      no_log: true
+
+    - name: Generate Incus trust token
+      ansible.builtin.shell:
+        cmd: |
+          incus config trust add tofu-client --quiet
+      register: incus_token
+      when: tofu_client_check.rc != 0
+      changed_when: true
+
+    - name: Save token to a file for Terragrunt
+      ansible.builtin.copy:
+        content: "{{ incus_token.stdout }}"
+        dest: "/opt/github-runner/incus/{{ inventory_hostname }}_incus_token.txt"
+        mode: '0600'
+        owner: 1000
+        group: 1000
+      diff: no
+      no_log: true
+      when: tofu_client_check.rc != 0

@@ -1,0 +1,7 @@
+[host]
+{% for zone_name, zone_data in zones.items() %}
+# Zone: {{ zone_name }}
+{% for host_name, host_details in zone_data.members.items() %}
+{{ host_name }} ansible_host={{ host_details.address }} ansible_user={{ host_details.user }} zone={{ zone_name }}
+{% endfor %}
+{% endfor %}

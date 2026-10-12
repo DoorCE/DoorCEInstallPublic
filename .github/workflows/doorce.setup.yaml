@@ -1,0 +1,38 @@
+name: DoorCE setup
+run-name: >-
+  ${{ 
+    format('{0}: {1} by @{2}', 
+      (github.event.inputs.action || 'plan'), 
+      (github.event.inputs.reason || github.ref_name), 
+      github.actor
+    ) 
+  }}
+
+on:
+  # push:
+  #  branches:
+  #    - main
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'plan'
+        type: choice
+        options: [plan, apply, destroy]
+      reason:
+        description: 'SAFETY CHECK: Type confirmation for destroy -> "Yes, I am 100% sure I want to destroy this service and I understand the consequences"'
+        required: false
+        default: "Manual triggered workflow"
+
+jobs:
+  incus-deploy:
+    uses: ./.github/workflows/_reusable.incus.deploy.yaml
+    with:
+      action: ${{ github.event.inputs.action || 'plan' }}
+      reason: ${{ github.event.inputs.reason || 'Manual triggered' }}
+      terragrunt_path: "docker/"
+    secrets:
+      TRAEFIK_KEY: ${{ secrets.TRAEFIK_KEY }}
+      TRAEFIK_CERT: ${{ secrets.TRAEFIK_CERT }}
+      KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}

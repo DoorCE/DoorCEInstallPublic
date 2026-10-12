@@ -1,0 +1,17 @@
+# Set default behavior to automatically detect text files
+* text=auto
+
+# Change line endings to LF for all text files
+# This will ensure that text files have LF line endings in the repository.
+# This is useful for cross-platform projects to avoid issues with CRLF line endings.
+*.tf text eol=lf
+*.hcl text eol=lf
+*.tfvars text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.sh text eol=lf
+Dockerfile text eol=lf
+Makefile text eol=lf
+*.md text eol=lf
+# Add more file types as needed

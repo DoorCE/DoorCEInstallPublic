@@ -1,0 +1,89 @@
+name: __Reusable Ansible Task__
+
+on:
+  workflow_call:
+    inputs:
+      action:
+        required: true
+        type: string
+        default: 'plan'
+      playbook:
+        required: true
+        type: string
+      inventory_artifact:
+        required: true
+        type: string
+      target_host:
+        required: true
+        type: string
+
+jobs:
+  ansible-run:
+    name: "Run Ansible Playbook on ${{ inputs.target_host }} - ${{ inputs.playbook }} - Action: ${{ inputs.action }}"
+    runs-on: ${{ inputs.target_host }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          clean: true
+
+      - name: Download Inventory Artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.inventory_artifact }}
+
+      - name: Determine Ansible Flags
+        id: flags
+        run: |
+          if [ "${{ inputs.action }}" == "plan" ]; then
+            echo "opts=--check --diff" >> $GITHUB_OUTPUT
+          else
+            echo "opts=--diff" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Use local SSH key
+        run: |
+          eval $(ssh-agent -s)
+          ssh-add /home/ubuntu/.ssh/id_ed25519
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
+
+      - name: Run Ansible Playbook
+        env:
+          ANSIBLE_STDOUT_CALLBACK: yaml
+          ANSIBLE_FORCE_COLOR: 'true'
+          ANSIBLE_ERROR_ON_EMPTY_CONFIG: 'True'
+          ANSIBLE_HOST_PATTERN_MISMATCH: 'error'
+        run: |
+          # Enable strict error handling and ensure that any failure in the pipeline is properly captured
+          set -euo pipefail
+
+          # Validate that inventory file exists and is not empty
+          if [ ! -s "inventory.ini" ]; then
+            echo "### ❌ ERROR: inventory.ini is missing or empty!" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          if ! ansible-inventory -i inventory.ini --list | jq -e '.all.children // .all.hosts | length > 0' > /dev/null; then
+            echo "### ❌ ERROR: inventory.ini contains no valid hosts!" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          # Run Ansible and capture logs to a file
+          # We use 'tee' so that logs are visible in the console and also saved to a file
+          # Flag --limit ensures we only target the specific host for this job
+          ansible-playbook \
+            --inventory inventory.ini \
+            --limit ${{ inputs.target_host }} \
+            ${{ steps.flags.outputs.opts }} \
+            ${{ inputs.playbook }} \
+            | tee ansible_output.log
+
+          # Generate summary for GitHub Step Summary
+          echo "### 🚀 Ansible Deployment Report (${{ inputs.action }})" >> $GITHUB_STEP_SUMMARY
+          echo "#### Playbook: \`${{ inputs.playbook }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "#### 📊 Play Recap" >> $GITHUB_STEP_SUMMARY
+          echo '```yaml' >> $GITHUB_STEP_SUMMARY
+          
+          # Extract only the PLAY RECAP section from the logs
+          sed -n '/PLAY RECAP/, $ p' ansible_output.log | sed 's/\x1b\[[0-9;]*m//g' >> $GITHUB_STEP_SUMMARY          
+          echo '```' >> $GITHUB_STEP_SUMMARY

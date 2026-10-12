@@ -1,0 +1,75 @@
+name: __Reusable Prepare Inventory__
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        required: false
+        type: string
+        default: 'main'
+    outputs:
+      artifact_name:
+        description: "Dynamic name of the inventory artifact"
+        value: ${{ jobs.generate.outputs.name }}
+      hosts_matrix:
+        value: ${{ jobs.generate.outputs.hosts }}
+
+jobs:
+  generate:
+    name: Generate Ansible Inventory
+    runs-on: self-hosted
+    outputs:
+      name: ${{ steps.set-name.outputs.artifact_name }}
+      hosts: ${{ steps.get-hosts.outputs.matrix }}
+    steps:
+      # - name: Configure SSH to use port 443
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     echo "Host github.com
+      #       Hostname ssh.github.com
+      #       # Port 22 is often blocked, so we use 443 as an alternative
+      #       Port 443
+      #       User git" > ~/.ssh/config
+      #     chmod 600 ~/.ssh/config
+
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          clean: true
+
+      - name: Set Artifact Name
+        id: set-name
+        # Generate a unique artifact name using the run ID to avoid conflicts
+        run: echo "artifact_name=inv-${{ github.run_id }}" >> $GITHUB_OUTPUT
+
+      - name: Generate Inventory
+        run: |
+          ansible-playbook ansible/inventory.yaml -e "config_file_path=../config.yaml"
+
+      - name: Generate Summary Report
+        if: always()
+        run: |
+          echo "### 🗒️ Inventory Generation Report" >> $GITHUB_STEP_SUMMARY
+          echo "Artifact Name: \`${{ steps.set-name.outputs.artifact_name }}\`" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -s "inventory.ini" ]; then
+            echo "#### 🖥️ Detected Hosts:" >> $GITHUB_STEP_SUMMARY
+            echo '```ini' >> $GITHUB_STEP_SUMMARY
+            cat inventory.ini >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ ERROR: inventory.ini is missing or empty!" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Extract hosts for Matrix
+        id: get-hosts
+        run: |
+          HOSTS=$(ansible-inventory -i inventory.ini --list | jq -c '.host.hosts')
+          echo "matrix=$HOSTS" >> $GITHUB_OUTPUT
+
+      - name: Upload Inventory Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.set-name.outputs.artifact_name }}
+          path: inventory.ini

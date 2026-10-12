@@ -1,0 +1,77 @@
+name: Host Setup
+run-name: >-
+  ${{ 
+    format('{0}: {1} by @{2}', 
+      (github.event.inputs.action || 'plan'), 
+      (github.event.inputs.reason || github.ref_name), 
+      github.actor
+    ) 
+  }}
+
+on:
+  # push:
+  #   branches:
+  #     - main
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'plan'
+        type: choice
+        options: [plan, apply]
+      reason:
+        description: 'Reason for this action (optional)'
+        required: false
+        default: "Manual triggered workflow"
+
+jobs:
+  ansible-inventory:
+    name: Generate Ansible Inventory
+    uses: ./.github/workflows/_reusable.ansible.inventory.yaml
+    secrets: inherit
+
+  setup-host:
+    needs: ansible-inventory
+    name: Setup Host ${{ matrix.host }}
+    strategy:
+      fail-fast: false
+      matrix:
+        host: ${{ fromJson(needs.ansible-inventory.outputs.hosts_matrix) }}
+    uses: ./.github/workflows/_reusable.ansible.task.yaml
+    with:
+      action: ${{ github.event.inputs.action || 'plan' }}
+      playbook: "ansible/host.setup.yaml"
+      inventory_artifact: ${{ needs.ansible-inventory.outputs.artifact_name }}
+      target_host: ${{ matrix.host }}
+    secrets: inherit
+
+  incus-install:
+    needs: [setup-host, ansible-inventory]
+    name: Install Incus on Host ${{ matrix.host }}
+    strategy:
+      fail-fast: false
+      matrix:
+        host: ${{ fromJson(needs.ansible-inventory.outputs.hosts_matrix) }}
+    uses: ./.github/workflows/_reusable.ansible.task.yaml
+    with:
+      action: ${{ github.event.inputs.action || 'plan' }}
+      playbook: "ansible/incus.install.yaml"
+      inventory_artifact: ${{ needs.ansible-inventory.outputs.artifact_name }}
+      target_host: ${{ matrix.host }}
+    secrets: inherit
+
+  incus-master-init:
+    needs: [setup-host, ansible-inventory, incus-install]
+    name: Initialize Incus Master on Host ${{ matrix.host }}
+    strategy:
+      fail-fast: false
+      matrix:
+        host: ${{ fromJson(needs.ansible-inventory.outputs.hosts_matrix) }}
+    uses: ./.github/workflows/_reusable.ansible.task.yaml
+    with:
+      action: ${{ github.event.inputs.action || 'plan' }}
+      playbook: "ansible/incus.master.init.yaml"
+      inventory_artifact: ${{ needs.ansible-inventory.outputs.artifact_name }}
+      target_host: ${{ matrix.host }}
+    secrets: inherit

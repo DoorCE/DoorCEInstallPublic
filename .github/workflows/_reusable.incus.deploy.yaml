@@ -1,0 +1,112 @@
+name: __Reusable Incus Deploy Task__
+
+on:
+  workflow_call:
+    inputs:
+      action:
+        type: string
+      reason:
+        type: string
+      terragrunt_path:
+        type: string
+    secrets:
+      TRAEFIK_KEY:
+        required: false
+      TRAEFIK_CERT:
+        required: false
+      KEYCLOAK_ADMIN_PASSWORD:
+        required: false
+jobs:
+  prepare:
+    runs-on: self-hosted
+    name: Prepare Deployment Matrix
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+         
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          clean: true
+
+      - name: Generate Matrix
+        id: set-matrix
+        run: |
+          MATRIX=$(yq -c '.zones | to_entries | [.[] | .key as $z | .value.master as $m | {"zone": $z, "master_name": $m, "master_ip": .value.members[$m].address}]' config.yaml)
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+  deploy:
+    needs: prepare
+    name: Deploy Zone ${{ matrix.zone }} via ${{ matrix.master_name }}
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    runs-on: ${{ matrix.master_name }}
+    env:
+      TG_PROVIDER_CACHE: 1
+      TG_PROVIDER_CACHE_DIR: ${{ github.workspace }}/.tg_provider_cache
+      TG_PARALLELISM: 6
+      TG_LOG_LEVEL: info
+      TG_DEPENDENCY_FETCH_OUTPUT_FROM_STATE: true
+
+      TRAEFIK_KEY: ${{ secrets.TRAEFIK_KEY }}
+      TRAEFIK_CERT: ${{ secrets.TRAEFIK_CERT }}
+      KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+      KEYCLOAK_ADMIN_USERNAME: ${{ vars.KEYCLOAK_ADMIN_USERNAME }}
+      
+    steps:
+
+      - name: Safety Check for Destroy Action
+        run: |
+          ACTION="${{ inputs.action }}"
+          REASON="${{ inputs.reason }}"
+          REQUIRED_CONFIRMATION="Yes, I am 100% sure I want to destroy this service and I understand the consequences"
+
+          echo "Selected Action: $ACTION"
+
+          if [ "$ACTION" == "destroy" ]; then
+            if [ "$REASON" != "$REQUIRED_CONFIRMATION" ]; then
+              echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+              echo "CRITICAL ERROR: Destroy action requested without proper confirmation!"
+              echo "Expected: '$REQUIRED_CONFIRMATION'"
+              echo "Received: '$REASON'"
+              echo "Execution aborted to prevent accidental data loss."
+              echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+              exit 1
+            else
+              echo "Confirmation accepted. Proceeding with infrastructure destruction..."
+            fi
+          fi
+
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          clean: true
+
+      - name: Set up Terragrunt and OpenTofu
+        uses: gruntwork-io/terragrunt-action@v3
+        with:
+          tg_version: '0.93.3'
+          tofu_version: '1.10.5'
+          
+      - name: Verify versions
+        run: |
+          terragrunt --version
+          which tofu
+          tofu version
+
+      - name: Use local SSH key
+        run: |
+          eval $(ssh-agent -s)
+          ssh-add /home/ubuntu/.ssh/id_ed25519
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
+
+      - name: 🏗️ Run Terragrunt Stack
+        working-directory: stacks
+        run: |
+          terragrunt stack generate
+          # tree -a -I '.git'
+          cd .terragrunt-stack/production/${{ matrix.zone }}/.terragrunt-stack/${{ inputs.terragrunt_path }}
+          terragrunt dag graph > stack_graph.dot
+          set -o pipefail
+          terragrunt stack run ${{ inputs.action }} --non-interactive 2>&1 | tee deployment.log

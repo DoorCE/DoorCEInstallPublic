@@ -1,0 +1,4 @@
+tls:
+  certificates:
+    - certFile: "/etc/traefik/https.cert"
+      keyFile: "/etc/traefik/https.key"

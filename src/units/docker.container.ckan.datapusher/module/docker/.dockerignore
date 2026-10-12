@@ -1,0 +1,10 @@
+.terragrunt-cache
+.terragrunt-source-manifest
+.terraform
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+*.tfvars
+*.tfvars.json
+.git
+*.log

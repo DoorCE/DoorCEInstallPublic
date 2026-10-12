@@ -1,0 +1,43 @@
+global:
+  sendAnonymousUsage: false
+  checkNewVersion: false
+log:
+  level: DEBUG
+api:
+  dashboard: true
+  insecure: false
+  basePath: "${service_site_path}"
+ping: {}
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: "websecure"
+          scheme: "https"
+          permanent: true
+  websecure:
+    address: ":443"
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: ${network}
+  file:
+    filename: "/etc/traefik/traefik.dynamic.conf.yml"
+    watch: true
+metrics:
+  prometheus: {}
+accessLog: {}
+# experimental:
+#   plugins:
+#     fail2ban:
+#       moduleName: "github.com/tomMoulard/fail2ban"
+#       version: "v0.9.0"
+#     redirectErrors:
+#       moduleName: github.com/indivisible/redirecterrors
+#       version: v0.1.0
+# responding:
+#   timeouts:
+#     idleTimeout: 0s # Disable timeout for idle connections (allows long-running streams)
