@@ -1,7 +1,8 @@
 name: Host Setup
 run-name: >-
   ${{ 
-    format('{0}: {1} by @{2}', 
+    format('{0} ({1}): {2} by @{3}', 
+      (github.event.inputs.environment || 'production'), 
       (github.event.inputs.action || 'plan'), 
       (github.event.inputs.reason || github.ref_name), 
       github.actor
@@ -12,18 +13,18 @@ on:
   # push:
   #   branches:
   #     - main
-  workflow_dispatch:
+  workflow_call:
     inputs:
       action:
-        description: 'Action to perform'
         required: true
-        default: 'plan'
-        type: choice
-        options: [plan, apply]
+        type: string
       reason:
-        description: 'Reason for this action (optional)'
+        required: true
+        type: string
+      branch:
         required: false
-        default: "Manual triggered workflow"
+        type: string
+        default: 'main'
 
 jobs:
   ansible-inventory:
@@ -44,6 +45,7 @@ jobs:
       playbook: "ansible/host.setup.yaml"
       inventory_artifact: ${{ needs.ansible-inventory.outputs.artifact_name }}
       target_host: ${{ matrix.host }}
+      branch: ${{ inputs.branch }}
     secrets: inherit
 
   incus-install:
@@ -59,6 +61,7 @@ jobs:
       playbook: "ansible/incus.install.yaml"
       inventory_artifact: ${{ needs.ansible-inventory.outputs.artifact_name }}
       target_host: ${{ matrix.host }}
+      branch: ${{ inputs.branch }}
     secrets: inherit
 
   incus-master-init:
@@ -74,4 +77,5 @@ jobs:
       playbook: "ansible/incus.master.init.yaml"
       inventory_artifact: ${{ needs.ansible-inventory.outputs.artifact_name }}
       target_host: ${{ matrix.host }}
+      branch: ${{ inputs.branch }}
     secrets: inherit

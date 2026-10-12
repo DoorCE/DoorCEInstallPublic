@@ -9,6 +9,9 @@ on:
         type: string
       terragrunt_path:
         type: string
+      branch:
+        type: string
+        default: 'main'
     secrets:
       TRAEFIK_KEY:
         required: false
@@ -23,14 +26,26 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-         
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
           clean: true
 
+      - name: Checkout DoorCEInstallPublic
+        uses: actions/checkout@v7
+        with:
+          repository: DoorCE/DoorCEInstallPublic
+          ref: ${{ inputs.branch || github.ref_name }}
+          path: DoorCEInstallPublic
+          clean: true
+          
+      - name: Copy Config Yaml to DoorCEInstallPublic
+        run: |
+          cp config.yaml DoorCEInstallPublic/config.yaml
+
       - name: Generate Matrix
         id: set-matrix
+        working-directory: DoorCEInstallPublic
         run: |
           MATRIX=$(yq -c '.zones | to_entries | [.[] | .key as $z | .value.master as $m | {"zone": $z, "master_name": $m, "master_ip": .value.members[$m].address}]' config.yaml)
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
@@ -53,6 +68,8 @@ jobs:
       TRAEFIK_CERT: ${{ secrets.TRAEFIK_CERT }}
       KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
       KEYCLOAK_ADMIN_USERNAME: ${{ vars.KEYCLOAK_ADMIN_USERNAME }}
+
+      # CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       
     steps:
 
@@ -78,10 +95,22 @@ jobs:
             fi
           fi
 
-      - name: Checkout Code
+      - name: Checkout Caller Repo (Config)
         uses: actions/checkout@v7
         with:
           clean: true
+
+      - name: Checkout DoorCEInstallPublic
+        uses: actions/checkout@v7
+        with:
+          repository: DoorCE/DoorCEInstallPublic
+          ref: ${{ inputs.branch || github.ref_name }}
+          path: DoorCEInstallPublic
+          clean: true
+          
+      - name: Copy Config Yaml to DoorCEInstallPublic
+        run: |
+          cp config.yaml DoorCEInstallPublic/config.yaml
 
       - name: Set up Terragrunt and OpenTofu
         uses: gruntwork-io/terragrunt-action@v3
@@ -95,14 +124,8 @@ jobs:
           which tofu
           tofu version
 
-      - name: Use local SSH key
-        run: |
-          eval $(ssh-agent -s)
-          ssh-add /home/ubuntu/.ssh/id_ed25519
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
-
       - name: 🏗️ Run Terragrunt Stack
-        working-directory: stacks
+        working-directory: DoorCEInstallPublic/stacks
         run: |
           terragrunt stack generate
           # tree -a -I '.git'
