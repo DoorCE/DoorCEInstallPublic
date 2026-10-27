@@ -79,3 +79,10 @@ variable "ssh_key_path" {
   type        = string
   default     = "/home/ubuntu/.ssh/id_ed25519"
 }
+
+variable container_enabled {
+  description = "Enable or disable the container"
+  type        = bool
+  default     = true
+  nullable    = false
+}

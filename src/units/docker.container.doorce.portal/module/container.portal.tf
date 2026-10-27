@@ -21,6 +21,10 @@ resource "docker_image" "this" {
 }
 
 resource "docker_container" "this" {
+  lifecycle {
+    enabled = var.container_enabled
+  }
+
   name  = var.name
   image = docker_image.this.image_id
   restart = "unless-stopped" # Container restart policy
