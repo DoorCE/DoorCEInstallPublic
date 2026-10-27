@@ -25,6 +25,9 @@ jobs:
   ansible-run:
     name: "Run Ansible Playbook on ${{ inputs.target_host }} - ${{ inputs.playbook }} - Action: ${{ inputs.action }}"
     runs-on: ${{ inputs.target_host }}
+    env:
+      LC_ALL: C.UTF-8
+      LANG: C.UTF-8
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
