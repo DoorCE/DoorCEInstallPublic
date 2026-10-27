@@ -21,6 +21,9 @@ jobs:
     outputs:
       name: ${{ steps.set-name.outputs.artifact_name }}
       hosts: ${{ steps.get-hosts.outputs.matrix }}
+    env:
+      LC_ALL: C.UTF-8
+      LANG: C.UTF-8
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
