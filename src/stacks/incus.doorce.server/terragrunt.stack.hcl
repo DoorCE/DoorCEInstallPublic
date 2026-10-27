@@ -459,6 +459,7 @@ unit "docker/capp/doorce/portal" {
     server_site_protocol = local.server_site_protocol
     server_site_url = local.server_site_url
     image_version = try(yamldecode(file(find_in_parent_folders("config.yaml"))).doorce_portal.version, null)
+    container_enabled = try(yamldecode(file(find_in_parent_folders("config.yaml"))).doorce_portal.deploy, null)
     dependencies = {
       network = local.unit_path.network_public
       container_doorce_mware = local.unit_path.container_doorce_mware
