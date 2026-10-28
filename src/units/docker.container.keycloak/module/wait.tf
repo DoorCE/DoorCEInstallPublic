@@ -15,11 +15,11 @@ resource "terraform_data" "keycloak_wait_complete" {
     command = <<EOT
       sleep 5 # Initial wait before starting checks
       URL="${local.public_site_url}"
-      TIMEOUT=120
+      TIMEOUT=180
       INTERVAL=5
       ELAPSED=0
       while [ $ELAPSED -lt $TIMEOUT ]; do
-        STATUS=$(curl -s -o /dev/null -w "%%{http_code}" -k "$URL")
+        STATUS=$(curl -Ls -o /dev/null -w "%%{http_code}" -k "$URL")
 
         if [ "$STATUS" = "200" ]; then
           echo "SUCCESS: Keycloak returned 200 OK at $URL"

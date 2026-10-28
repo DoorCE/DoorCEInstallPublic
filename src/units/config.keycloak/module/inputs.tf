@@ -72,9 +72,16 @@ variable "service_site_url" {
   type        = string
 }
 
-variable "oauth2_proxy_site_path" {
+variable "service_site_path" {
+  description = "Site path for the service (e.g. /dozzle)"
+  type        = string
+  default     = "/dozzle"
+}
+
+variable "dozzle_site_path" {
   description = "Site path for the OAuth2 Proxy service"
   type        = string
+  default    = "/dozzle"
   nullable   = false
 }
 

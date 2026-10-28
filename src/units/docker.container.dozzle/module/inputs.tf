@@ -19,7 +19,7 @@ variable "container_image" {
 variable "container_version" {
   description = "Version of the Dozzle container"
   type        = string
-  default     = "v10.6.10"  # https://github.com/amir20/dozzle/releases
+  default     = "v11.3.5"  # https://github.com/amir20/dozzle/releases
   nullable   = false
 }
 
@@ -53,17 +53,17 @@ variable "service_site_protocol" {
   default     = "http"
 }
 
-variable "traefik_auth_credentials_username" {
-  description = "Credentials for Traefik Basic Auth username"
-  type        = string
-  sensitive   = true
-}
+# variable "traefik_auth_credentials_username" {
+#   description = "Credentials for Traefik Basic Auth username"
+#   type        = string
+#   sensitive   = true
+# }
 
-variable "traefik_auth_credentials_password" {
-  description = "Credentials for Traefik Basic Auth password"
-  type        = string
-  sensitive   = true
-}
+# variable "traefik_auth_credentials_password" {
+#   description = "Credentials for Traefik Basic Auth password"
+#   type        = string
+#   sensitive   = true
+# }
 
 variable "ssh_host" {
   description = "SSH host for Docker provider"
@@ -88,8 +88,14 @@ variable "ssh_key_path" {
   default     = "/home/ubuntu/.ssh/id_ed25519"
 }
 
-variable "oauth2_proxy_site_path" {
-  description = "Site path for the OAuth2 Proxy service"
+# variable "oauth2_proxy_site_path" {
+#   description = "Site path for the OAuth2 Proxy service"
+#   type        = string
+#   nullable   = false
+# }
+
+variable "dozzle_client_secret" {
   type        = string
-  nullable   = false
+  description = "Secret klienta OIDC Dozzle z Keycloak"
+  sensitive   = true
 }

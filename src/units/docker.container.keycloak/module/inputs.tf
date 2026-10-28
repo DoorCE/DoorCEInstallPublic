@@ -19,7 +19,7 @@ variable "container_image" {
 variable "container_version" {
   description = "Version of the Keycloak container image"
   type        = string
-  default     = "26.2.5" # https://hub.docker.com/r/keycloak/keycloak/tags
+  default     = "26.8.1" # https://hub.docker.com/r/keycloak/keycloak/tags
   nullable   = false
 }
 

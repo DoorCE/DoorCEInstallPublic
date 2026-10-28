@@ -19,7 +19,7 @@ variable "container_image" {
 variable "container_version" {
   description = "Version of the Traefik container"
   type        = string
-  default     = "3.6.23" # https://github.com/traefik/traefik/tags
+  default     = "3.7.16" # https://github.com/traefik/traefik/tags
   nullable   = false
 }
 

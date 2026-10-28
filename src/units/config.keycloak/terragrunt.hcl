@@ -27,7 +27,7 @@ inputs = {
   keycloak_admin_password = try(values.keycloak_admin_password, null)
   service_site_protocol = values.server_site_protocol
   service_site_url = values.server_site_url
-  oauth2_proxy_site_path = try(values.oauth2_proxy_site_path, null)
+  dozzle_site_path = try(values.dozzle_site_path, null)
   udas_demo = try(values.udas_demo, null)
   udas_keycloak_message = try(values.udas_keycloak_message, null)
 }

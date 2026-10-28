@@ -24,15 +24,15 @@ dependency "traefik" {
   mock_outputs_merge_strategy_with_state = "shallow"
 }
 
-dependency "keycloak" {
-  config_path = find_in_parent_folders(values.dependencies.config_keycloak)
-  mock_outputs = {
-    oauth2_proxy_client_id = "__mock-client-id__"
-    oauth2_proxy_client_secret = "__mock-client-secret__"
-    oauth2_proxy_realm = "__mock-realm__"
-  }
-  mock_outputs_merge_strategy_with_state = "shallow"
-}
+# dependency "keycloak" {
+#   config_path = find_in_parent_folders(values.dependencies.config_keycloak)
+#   mock_outputs = {
+#     oauth2_proxy_client_id = "__mock-client-id__"
+#     oauth2_proxy_client_secret = "__mock-client-secret__"
+#     oauth2_proxy_realm = "__mock-realm__"
+#   }
+#   mock_outputs_merge_strategy_with_state = "shallow"
+# }
 
 dependency "incus_container_doorce" {
   config_path = find_in_parent_folders(values.dependencies.incus_container_doorce)
@@ -53,7 +53,7 @@ inputs = {
   traefik_auth_credentials_username = dependency.traefik.outputs.traefik_auth_credentials_username
   traefik_auth_credentials_password = dependency.traefik.outputs.traefik_auth_credentials_password
   ssh_host = dependency.incus_container_doorce.outputs.ipv4_address
-  keycloak_realm = dependency.keycloak.outputs.oauth2_proxy_realm
-  keycloak_client_id = dependency.keycloak.outputs.oauth2_proxy_client_id
-  keycloak_client_secret = dependency.keycloak.outputs.oauth2_proxy_client_secret
+  # keycloak_realm = dependency.keycloak.outputs.oauth2_proxy_realm
+  # keycloak_client_id = dependency.keycloak.outputs.oauth2_proxy_client_id
+  # keycloak_client_secret = dependency.keycloak.outputs.oauth2_proxy_client_secret
 }
