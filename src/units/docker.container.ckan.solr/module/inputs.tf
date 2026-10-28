@@ -19,7 +19,7 @@ variable "container_image" {
 variable "container_version" {
   description = "Version of the Solr container"
   type        = string
-  default     = "2.10-solr9"
+  default     = "2.12-solr9.9"
   nullable   = false
 }
 

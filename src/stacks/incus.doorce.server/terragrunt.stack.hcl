@@ -14,6 +14,7 @@ locals {
   udas_server_site_path = "/udas"
   udas_platform_site_path = "/platform"
   oauth2_proxy_site_path = "/oauth2-proxy"
+  dozzle_site_path = "/dozzle"
 
   unit_path = {
     incus_container_doorce = "incus/csys/doorce"
@@ -188,11 +189,12 @@ unit "docker/capp/dozzle" {
     name = "dozzle"
     server_site_protocol = local.server_site_protocol
     server_site_url = local.server_site_url
-    oauth2_proxy_site_path = local.oauth2_proxy_site_path
+    dozzle_site_path = local.dozzle_site_path
     dependencies = {
       network = local.unit_path.network_public
-      traefik = local.unit_path.container_traefik
+      # traefik = local.unit_path.container_traefik
       incus_container_doorce = local.unit_path.incus_container_doorce
+      config_keycloak = local.unit_path.config_keycloak
     }
   }
 }

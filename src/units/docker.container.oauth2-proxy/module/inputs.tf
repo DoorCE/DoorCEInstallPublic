@@ -42,7 +42,7 @@ variable "container_image" {
 variable "container_version" {
   description = "Version of the OAuth2 Proxy container"
   type        = string
-  default     = "v7.15.2"  # https://github.com/oauth2-proxy/oauth2-proxy/releases
+  default     = "v7.15.5"  # https://github.com/oauth2-proxy/oauth2-proxy/releases
   nullable   = false
 }
 
@@ -82,12 +82,12 @@ variable "keycloak_client_id" {
   nullable   = false
 }
 
-variable "keycloak_client_secret" {
-  description = "Keycloak client secret for OAuth2 Proxy"
-  type        = string
-  sensitive   = true
-  nullable   = false
-}
+# variable "keycloak_client_secret" {
+#   description = "Keycloak client secret for OAuth2 Proxy"
+#   type        = string
+#   sensitive   = true
+#   nullable   = false
+# }
 
 variable "keycloak_realm" {
   description = "Keycloak realm for OAuth2 Proxy"

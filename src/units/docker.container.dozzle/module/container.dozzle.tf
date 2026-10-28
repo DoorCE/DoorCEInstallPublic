@@ -20,8 +20,8 @@ resource "docker_image" "this" {
 }
 
 resource "docker_container" "this" {
-  name  = var.name
-  image = docker_image.this.image_id
+  name    = var.name
+  image   = docker_image.this.image_id
   restart = "unless-stopped"
 
   networks_advanced {
@@ -29,7 +29,19 @@ resource "docker_container" "this" {
   }
 
   env = [
+    # Bazowa ścieżka URL (np. /dozzle)
     "DOZZLE_BASE=${var.service_site_path}",
+    # Metryki
+    "DOZZLE_ENABLE_HOST_METRICS=true",
+    # Włączenie akcji na kontenerach (restart, start, stop)
+    "DOZZLE_ENABLE_ACTIONS=true",
+    "DOZZLE_IMAGE_CHECK_MODE=off",   # Wyłącza akcję aktualizacji
+    # Konfiguracja natywnego OIDC Dozzle 11
+    "DOZZLE_AUTH_PROVIDER=oidc",
+    "DOZZLE_AUTH_OIDC_ISSUER=${var.service_site_protocol}://${var.service_site_url}/keycloak/realms/infra",
+    "DOZZLE_AUTH_OIDC_CLIENT_ID=dozzle",
+    "DOZZLE_AUTH_OIDC_CLIENT_SECRET=${var.dozzle_client_secret}",
+    "DOZZLE_AUTH_TTL=1h",
   ]
 
   log_opts = {
@@ -47,7 +59,14 @@ resource "docker_container" "this" {
     read_only      = true
   }
 
-  # --- TRAEFIK LABELS ---
+  # Wolumen na stan sesji i ustawienia Dozzle 11
+  # (bez /data klucze sesji są regenerowane przy każdym restarcie, wylogowując użytkowników)
+  volumes {
+    host_path      = "${path.cwd}/data/dozzle" # lub wolumen dockerowy
+    container_path = "/data"
+  }
+
+  # --- TRAEFIK LABELS (uproszczone do czystego routingu) ---
 
   labels {
     label = "traefik.enable"
@@ -61,7 +80,7 @@ resource "docker_container" "this" {
 
   labels {
     label = "traefik.http.routers.${var.name}.priority"
-    value = "100" # set a higher priority to ensure this router is matched before more generic ones
+    value = "100"
   }
 
   labels {
@@ -74,78 +93,8 @@ resource "docker_container" "this" {
     value = var.service_site_protocol == "https" ? "true" : "false"
   }
 
-
-  # Middleware Auth Forward
-  labels {
-    label = "traefik.http.middlewares.${var.name}-infra-auth.forwardauth.address"
-    value = "http://oauth2-proxy-dozzle:4180/oauth2-proxy/auth"
-  }
-
-  labels {
-    label = "traefik.http.middlewares.${var.name}-infra-auth.forwardauth.trustForwardHeader"
-    value = "true"
-  }
-
-  labels {
-    label = "traefik.http.middlewares.${var.name}-infra-auth.forwardauth.authResponseHeaders"
-    #value = "X-Auth-Request-User,X-Auth-Request-Email,X-Auth-Request-Access-Token,Authorization,Set-Cookie"
-    value = "X-Auth-Request-User,X-Auth-Request-Email,Authorization,Set-Cookie"
-  }
-
-  labels {
-    label = "traefik.http.middlewares.${var.name}-infra-auth.forwardauth.authRequestHeaders"
-    value = "X-Forwarded-Method,X-Forwarded-Proto,X-Forwarded-Host,X-Forwarded-Uri,X-Forwarded-For,Cookie"
-  }
-
-
-  # # Middleware Redirect Plugin
-  # labels {
-  #   label = "traefik.http.middlewares.${var.name}-dozzle-error-redirect.plugin.redirectErrors.status"
-  #   value = "401"
-  # }
-
-  # labels {
-  #   label = "traefik.http.middlewares.${var.name}-dozzle-error-redirect.plugin.redirectErrors.target"
-  #   value = "https://${var.service_site_url}/oauth2-proxy/start?rd={url}"
-  # }
-
-  # labels {
-  #   label = "traefik.http.middlewares.${var.name}-dozzle-error-redirect.plugin.redirectErrors.outputStatus"
-  #   value = "302"
-  # }
-
-  labels {
-    label = "traefik.http.middlewares.${var.name}-error-pages.errors.status"
-    value = "401"
-  }
-  
-  labels {
-    label = "traefik.http.middlewares.${var.name}-error-pages.errors.service"
-    value = "dozzle-oauth2-proxy@docker"
-  }
-  
-  labels {
-    label = "traefik.http.middlewares.${var.name}-error-pages.errors.query"
-    value = "/oauth2-proxy/start?rd={url}"
-  }
-
-  # Chan middleware to handle authentication and error redirection
-  labels {
-    label = "traefik.http.routers.${var.name}.middlewares"
-    #value = "${var.name}-dozzle-error-redirect@docker,${var.name}-infra-auth@docker"
-    #value = "${var.name}-infra-auth@docker"
-    value = "${var.name}-error-pages@docker,${var.name}-infra-auth@docker"
-  }
-
   labels {
     label = "traefik.http.services.${var.name}.loadbalancer.server.port"
     value = "${var.internal_port}"
   }
-
-  # # Configure Traefik to flush the response immediately, which is important for real-time log streaming in Dozzle
-  # labels {
-  #   label = "traefik.http.services.${var.name}.loadbalancer.responseForwarding.flushInterval"
-  #   value = "1ms" # immediately flush the response to the client for real-time log streaming
-  # }
-  
 }

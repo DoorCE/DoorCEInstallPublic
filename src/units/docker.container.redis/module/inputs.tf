@@ -19,7 +19,7 @@ variable "container_image" {
 variable "container_version" {
   description = "Version of the Redis container"
   type        = string
-  default     = "6" #https://github.com/redis/redis/tags
+  default     = "8.10.3" #https://github.com/redis/redis/tags
   nullable   = false
 }
 
