@@ -24,19 +24,15 @@ resource "docker_image" "this" {
 }
 
 resource "docker_container" "this" {
-  name  = var.name
-  image = docker_image.this.image_id
-  restart = "unless-stopped" # Container restart policy
+  name         = var.name
+  image        = docker_image.this.image_id
+  restart      = "unless-stopped"
+  
+  # Traefik korzysta bezpośrednio ze stosu sieciowego maszyny wirtualnej
+  network_mode = "host"
 
-  ports {
-    internal = var.internal_http_port
-    external = var.host_http_port
-  }
-
-  ports {
-    internal = var.internal_https_port
-    external = var.host_https_port
-  }
+  # --- USUNIĘTO: bloki ports dla portu 80 i 443 ---
+  # --- USUNIĘTO: networks_advanced { name = var.network_public } ---
 
   volumes {
     host_path      = "/var/run/docker.sock"
@@ -45,12 +41,8 @@ resource "docker_container" "this" {
   }
 
   log_opts = {
-    "max-size" = "10m" # Log rotation size
-    "max-file" = "5"   # Number of log files to keep
-  }
-
-  networks_advanced {
-    name = var.network_public
+    "max-size" = "10m"
+    "max-file" = "5"
   }
 
   env = [
@@ -63,13 +55,14 @@ resource "docker_container" "this" {
   ]
 
   healthcheck {
-    test     = ["CMD-SHELL", "curl -s http://localhost:8080/ping | grep -qxF 'OK'"]
-    interval = "1m0s" # Time between health checks
-    timeout  = "20s"  # Time to wait for a health check to succeed
-    retries  = 3 # Number of retries before considering the container unhealthy
-    start_period = "50s" # Time to wait before starting health checks
+    test         = ["CMD-SHELL", "curl -s http://localhost:8080/ping | grep -qxF 'OK'"]
+    interval     = "1m0s"
+    timeout      = "20s"
+    retries      = 3
+    start_period = "50s"
   }
 
+  # --- LABELS (pozostają bez zmian) ---
   labels {
     label = "traefik.enable"
     value = "true"
@@ -94,34 +87,12 @@ resource "docker_container" "this" {
     label = "traefik.http.middlewares.${var.name}-dashboard-auth.basicauth.users"
     value = "${random_password.username.result}:${htpasswd_password.hash.apr1}"
   }
-  # labels {
-  #   label = "traefik.http.middlewares.${var.name}-fail2ban.plugin.fail2ban.rules.statusCodes"
-  #   value = "401"
-  # }
-  # labels {
-  #   label = "traefik.http.middlewares.${var.name}-fail2ban.plugin.fail2ban.rules.bantime"
-  #   value = "15m"
-  # }
-  # labels {
-  #   label = "traefik.http.middlewares.${var.name}-fail2ban.plugin.fail2ban.rules.findtime"
-  #   value = "2m"
-  # }
-  # labels {
-  #   label = "traefik.http.middlewares.${var.name}-fail2ban.plugin.fail2ban.rules.maxretry"
-  #   value = "3"
-  # }
-  # labels {
-  #   label = "traefik.http.middlewares.${var.name}-fail2ban.plugin.fail2ban.rules.enabled"
-  #   value = "true"
-  # }
-  # labels {
-  #   label = "traefik.http.middlewares.${var.name}-fail2ban.plugin.fail2ban.rules.loglevel"
-  #   value = "INFO"
-  # }
   labels {
     label = "traefik.http.routers.${var.name}.middlewares"
-    #value = "${var.name}-dashboard-auth,${var.name}-fail2ban"
     value = "${var.name}-dashboard-auth"
   }
-
+  labels {
+    label = "traefik.http.services.${var.name}.loadbalancer.server.port"
+    value = "${var.internal_dashboard_port}" # czyli 8080
+  }
 }

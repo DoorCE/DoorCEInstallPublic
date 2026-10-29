@@ -46,9 +46,16 @@ resource "incus_network_acl" "members-networks-acl" {
       action           = "allow"
       state            = "enabled"
       protocol         = "tcp"
-      source           = "172.16.16.0/28"
+      source           = "172.16.16.0/28,${each.value.gateway}/32"
       destination_port = "22"
       description      = "Allow SSH from GitHub Runner network"
+    },
+    {
+      action           = "allow"
+      state            = "enabled"
+      protocol         = "tcp"
+      destination_port = "80,443"
+      description      = "Allow public HTTP/HTTPS traffic to Traefik"
     },
   ]
 }

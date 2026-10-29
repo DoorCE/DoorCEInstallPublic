@@ -27,11 +27,9 @@
     - name: Sync setup.github-runner.sh to /usr/bin
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/files/setup.github-runner.sh"
-        dest: "/usr/bin/setup.github-runner.sh"
-        mode: '0755'
-        owner: root
-        group: root
-        directory_mode: '0755'
+        dest: "~/setup.github-runner.sh"
+        mode: '0644'
+      become: false
 
     - name: Enable IPv4 forwarding in sysctl
       ansible.builtin.copy:
