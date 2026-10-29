@@ -109,6 +109,7 @@ inputs = {
   server_site_protocol = values.server_site_protocol
   server_site_url = values.server_site_url
   service_site_path = try(values.service_site_path, null)
+  ip_white_list = values.ip_white_list
   networks = [
     dependency.network-public.outputs.name,
     dependency.network-solr.outputs.name,

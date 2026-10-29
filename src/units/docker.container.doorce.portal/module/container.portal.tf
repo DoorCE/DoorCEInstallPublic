@@ -42,31 +42,13 @@ resource "docker_container" "this" {
     }
   }
 
-  # Enable Traefik for this container
+  # ============================================================================
+  # TRAEFIK LABELS FOR DOORCE PORTAL (GRAV CMS)
+  # ============================================================================
+
   labels {
     label = "traefik.enable"
     value = "true"
-  }
-
-  labels {
-    label = "traefik.http.routers.${var.name}.priority"
-    value = "1" # Set a low priority to ensure it doesn't override more specific routes
-  }
-
-  labels {
-    label = "traefik.http.routers.${var.name}.rule"
-    value = "Host(`${var.server_site_url}`)"
-    # value = "Host(`${var.server_site_url}`) && !PathPrefix(`/dozzle`) && !PathPrefix(`/oauth2-proxy`)"
-  }
-
-  labels {
-    label = "traefik.http.routers.${var.name}.entrypoints"
-    value = var.server_site_protocol == "https" ? "websecure" : "web"
-  }
-
-  labels {
-    label = "traefik.http.routers.${var.name}.tls"
-    value = var.server_site_protocol == "https" ? "true" : "false"
   }
 
   labels {
@@ -74,9 +56,109 @@ resource "docker_container" "this" {
     value = "${var.internal_port}"
   }
 
-  log_opts = {
-    "max-size" = "10m" # Log rotation size
-    "max-file" = "5"   # Number of log files to keep
+  # --- 1. DEFINICJE MIDDLEWARES ---
+
+  # Przekierowanie fallback 302 na stronę główną
+  labels {
+    label = "traefik.http.middlewares.${var.name}-redirect-to-root.redirectregex.regex"
+    value = "^.*$"
+  }
+  labels {
+    label = "traefik.http.middlewares.${var.name}-redirect-to-root.redirectregex.replacement"
+    value = "${var.server_site_protocol}://${var.server_site_url}/"
+  }
+  labels {
+    label = "traefik.http.middlewares.${var.name}-redirect-to-root.redirectregex.permanent"
+    value = "false"
   }
 
+  # Blokada krytycznych zasobów flat-file (dostęp tylko z pętli zwrotnej)
+  labels {
+    label = "traefik.http.middlewares.${var.name}-block-system.ipallowlist.sourcerange"
+    value = "127.0.0.1/32"
+  }
+
+  # --- 2. ROUTER: CAŁKOWITA BLOKADA ŚCIEŻEK SYSTEMOWYCH GRAV (Priorytet 400) ---
+  # Uniemożliwia pobranie baz YAML, kont użytkowników i kopii zapasowych
+  labels {
+    label = "traefik.http.routers.${var.name}-system-block.rule"
+    value = "Host(`${var.server_site_url}`) && (PathPrefix(`/user/accounts`) || PathPrefix(`/user/config`) || PathPrefix(`/backup`) || PathPrefix(`/bin`))"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-system-block.priority"
+    value = "400"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-system-block.entrypoints"
+    value = var.server_site_protocol == "https" ? "websecure" : "web"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-system-block.tls"
+    value = var.server_site_protocol == "https" ? "true" : "false"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-system-block.middlewares"
+    value = "${var.name}-block-system"
+  }
+
+  # --- 3. ROUTER: PANEL ADMINA DLA ZAUFANYCH IP (Priorytet 200) ---
+  # Dozwolone adresy IP wchodzą bezpośrednio do /admin
+  labels {
+    label = "traefik.http.routers.${var.name}-admin.rule"
+    value = "Host(`${var.server_site_url}`) && PathPrefix(`/admin`) && (${join(" || ", [for ip in var.ip_white_list : "ClientIP(`${ip}`)"])})"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-admin.priority"
+    value = "200"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-admin.entrypoints"
+    value = var.server_site_protocol == "https" ? "websecure" : "web"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-admin.tls"
+    value = var.server_site_protocol == "https" ? "true" : "false"
+  }
+
+  # --- 4. ROUTER: FALLBACK DLA ADMINA (Priorytet 190) ---
+  # Nieuprawnione IP próbujące wejść na /admin zostają odesłane na stronę główną /
+  labels {
+    label = "traefik.http.routers.${var.name}-admin-fallback.rule"
+    value = "Host(`${var.server_site_url}`) && PathPrefix(`/admin`)"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-admin-fallback.priority"
+    value = "190"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-admin-fallback.entrypoints"
+    value = var.server_site_protocol == "https" ? "websecure" : "web"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-admin-fallback.tls"
+    value = var.server_site_protocol == "https" ? "true" : "false"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-admin-fallback.middlewares"
+    value = "${var.name}-redirect-to-root"
+  }
+
+  # --- 5. ROUTER: GŁÓWNY RUCH PUBLICZNY PORTALU (Priorytet 1) ---
+  # Standardowy routing dla odwiedzających portal
+  labels {
+    label = "traefik.http.routers.${var.name}.rule"
+    value = "Host(`${var.server_site_url}`)"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}.priority"
+    value = "1"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}.entrypoints"
+    value = var.server_site_protocol == "https" ? "websecure" : "web"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}.tls"
+    value = var.server_site_protocol == "https" ? "true" : "false"
+  }
 }

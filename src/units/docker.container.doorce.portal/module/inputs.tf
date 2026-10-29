@@ -86,3 +86,12 @@ variable container_enabled {
   default     = true
   nullable    = false
 }
+
+variable "ip_white_list" {
+  type        = list(string)
+  description = "List of allowed IP CIDRs for Dozzle access"
+  default = [
+    "0.0.0.0/0",
+  ]
+  nullable   = false
+}

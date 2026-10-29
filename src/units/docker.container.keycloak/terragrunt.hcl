@@ -36,6 +36,7 @@ inputs = {
   name = values.name
   container_image = try(values.container_image, null)
   container_version = try(values.container_version, null)
+  ip_white_list = values.ip_white_list
   networks = [
     dependency.network.outputs.name,
   ]

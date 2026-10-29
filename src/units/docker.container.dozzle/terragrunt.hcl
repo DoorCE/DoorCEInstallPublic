@@ -53,4 +53,5 @@ inputs = {
   ssh_host = dependency.incus_container_doorce.outputs.ipv4_address
   # oauth2_proxy_site_path = try(values.oauth2_proxy_site_path, null)
   dozzle_client_secret = dependency.keycloak.outputs.dozzle_client_secret
+  ip_white_list = values.ip_white_list
 }

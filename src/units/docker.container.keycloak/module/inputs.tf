@@ -91,3 +91,12 @@ variable "ssh_key_path" {
   type        = string
   default     = "/home/ubuntu/.ssh/id_ed25519"
 }
+
+variable "ip_white_list" {
+  type        = list(string)
+  description = "List of allowed IP CIDRs for Dozzle access"
+  default = [
+    "0.0.0.0/0",
+  ]
+  nullable   = false
+}
