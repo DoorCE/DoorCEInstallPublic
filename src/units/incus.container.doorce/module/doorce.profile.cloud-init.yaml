@@ -2,8 +2,20 @@
 package_update: true
 package_upgrade: true
 
-ssh_authorized_keys:
-  - ${ssh_public_key}
+groups:
+  - docker
+
+users:
+  - default
+  - name: ubuntu
+    groups: [sudo, docker]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+# ssh_authorized_keys:
+#   - ${ssh_public_key}
 
 # Install prerequisites for Docker repository
 packages:
@@ -20,8 +32,6 @@ write_files:
 runcmd:
   - chown -R ubuntu:ubuntu /home/ubuntu
   - chmod 750 /home/ubuntu
-  - systemctl stop sshd.service
-  - systemctl stop ssh.socket
   - mkdir -p /etc/apt/keyrings
 
   - |
@@ -42,7 +52,7 @@ runcmd:
     EOF
 
   - |
-    VERSION="5:26.1.4-1~ubuntu.24.04~noble"
+    VERSION="5:29.9.2-1~ubuntu.24.04~noble"
     apt-get update
     apt-get install -y \
       docker-ce=$VERSION \
@@ -52,7 +62,8 @@ runcmd:
       docker-compose-plugin
   
   # externall volume permissions fix
-  - chown -R root:root /var/lib/docker  
+  - chown root:root /var/lib/docker
+  - chmod 711 /var/lib/docker
   - systemctl restart docker
 
   - apt-mark hold docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin

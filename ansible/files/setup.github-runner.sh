@@ -6,8 +6,8 @@ set -o pipefail # Stop, if a command within a pipe fails
 GH_URL=""
 GH_TOKEN=""
 ADDRESS="172.16.16.1/28"
-RUNNER_VERSION="2.333.1"
-RUNNER_HASH="18f8f68ed1892854ff2ab1bab4fcaa2f5abeedc98093b6cb13638991725cab74"
+RUNNER_VERSION="2.338.0"
+RUNNER_HASH="af4b794c1bc41d73d40535e3fe092a39f9679cd8d965954c2aca25a05ca41d32"
 CONTAINER_NAME="github-runner"
 NODE_MAJOR=24
 HOSTNAME=$(hostname)

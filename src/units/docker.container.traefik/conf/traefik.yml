@@ -2,7 +2,7 @@ global:
   sendAnonymousUsage: false
   checkNewVersion: false
 log:
-  level: DEBUG
+  level: INFO
 api:
   dashboard: true
   insecure: false
@@ -11,14 +11,21 @@ ping: {}
 entryPoints:
   web:
     address: ":80"
+    proxyProtocol:
+      trustedIPs:
+        - "127.0.0.1/32"
     http:
       redirections:
         entryPoint:
           to: "websecure"
           scheme: "https"
           permanent: true
+
   websecure:
     address: ":443"
+    proxyProtocol:
+      trustedIPs:
+        - "127.0.0.1/32"
 providers:
   docker:
     endpoint: "unix:///var/run/docker.sock"

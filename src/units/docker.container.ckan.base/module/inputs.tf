@@ -19,7 +19,7 @@ variable "container_image" {
 variable "container_version" {
   description = "Version of the CKAN Base container"
   type        = string
-  default     = "2.12"
+  default     = "2.12.1" # https://docs.ckan.org/en/latest/changelog.html
   nullable   = false
 }
 

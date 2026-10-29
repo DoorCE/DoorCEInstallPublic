@@ -27,9 +27,9 @@ on:
 
 jobs:
   call-reusable-workflow:
-    uses: DoorCE/DoorCEInstallPublic/.github/workflows/doorce.setup.yaml@v1.1.14
+    uses: DoorCE/DoorCEInstallPublic/.github/workflows/doorce.setup.yaml@v1.1.15
     with:
       action: ${{ github.event.inputs.action || 'plan' }}
       reason: ${{ github.event.inputs.reason || format('Push to {0}', github.ref_name) }}
-      branch: v1.1.14
+      branch: v1.1.15
     #secrets: inherit

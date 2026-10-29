@@ -51,6 +51,7 @@ resource "incus_profile" "doorce" {
     properties = {
       network = incus_network.networks["incus-udas"].name
       name    = "eth0"
+      "ipv4.address" = "10.8.1.2"
     }
   }
 
@@ -60,6 +61,7 @@ resource "incus_profile" "doorce" {
     properties = {
       listen  = "tcp:0.0.0.0:80"
       connect = "tcp:127.0.0.1:80"
+      proxy_protocol = "true"
     }
   }
 
@@ -69,6 +71,7 @@ resource "incus_profile" "doorce" {
     properties = {
       listen  = "tcp:0.0.0.0:443"
       connect = "tcp:127.0.0.1:443"
+      proxy_protocol = "true"
     }
   }
 
