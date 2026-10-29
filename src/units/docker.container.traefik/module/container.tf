@@ -55,21 +55,58 @@ resource "docker_container" "this" {
   ]
 
   healthcheck {
-    test         = ["CMD-SHELL", "curl -s http://localhost:8080/ping | grep -qxF 'OK'"]
+    test         = ["CMD-SHELL", "curl -s http://localhost:${var.internal_dashboard_port}/ping | grep -qxF 'OK'"]
     interval     = "1m0s"
     timeout      = "20s"
     retries      = 3
     start_period = "50s"
   }
 
-  # --- LABELS (pozostają bez zmian) ---
+  # ============================================================================
+  # TRAEFIK LABELS FOR TRAEFIK DASHBOARD & API
+  # ============================================================================
+
   labels {
     label = "traefik.enable"
     value = "true"
   }
+
+  labels {
+    label = "traefik.http.services.${var.name}.loadbalancer.server.port"
+    value = "${var.internal_dashboard_port}"
+  }
+
+  # --- 1. DEFINICJE MIDDLEWARES ---
+
+  # Uwierzytelnienie Basic Auth (użytkownik + hasło wygenerowane w OpenTofu)
+  labels {
+    label = "traefik.http.middlewares.${var.name}-dashboard-auth.basicauth.users"
+    value = "${random_password.username.result}:${htpasswd_password.hash.apr1}"
+  }
+
+  # Przekierowanie fallback 302 na stronę główną dla nieuprawnionych IP
+  labels {
+    label = "traefik.http.middlewares.${var.name}-redirect-to-root.redirectregex.regex"
+    value = "^.*$"
+  }
+  labels {
+    label = "traefik.http.middlewares.${var.name}-redirect-to-root.redirectregex.replacement"
+    value = "${var.server_site_protocol}://${var.server_site_url}/"
+  }
+  labels {
+    label = "traefik.http.middlewares.${var.name}-redirect-to-root.redirectregex.permanent"
+    value = "false"
+  }
+
+  # --- 2. ROUTER GŁÓWNY: Dashboard i API tylko dla zaufanych IP (Priorytet 200) ---
+  # Podwójna ochrona (Defence-in-depth): weryfikacja IP + monit o login i hasło BasicAuth
   labels {
     label = "traefik.http.routers.${var.name}.rule"
-    value = "Host(`${var.server_site_url}`) && PathPrefix(`${var.service_site_path}`)"
+    value = "Host(`${var.server_site_url}`) && PathPrefix(`${var.service_site_path}`) && (${join(" || ", [for ip in var.ip_white_list : "ClientIP(`${ip}`)"])})"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}.priority"
+    value = "200"
   }
   labels {
     label = "traefik.http.routers.${var.name}.entrypoints"
@@ -84,15 +121,34 @@ resource "docker_container" "this" {
     value = "api@internal"
   }
   labels {
-    label = "traefik.http.middlewares.${var.name}-dashboard-auth.basicauth.users"
-    value = "${random_password.username.result}:${htpasswd_password.hash.apr1}"
-  }
-  labels {
     label = "traefik.http.routers.${var.name}.middlewares"
     value = "${var.name}-dashboard-auth"
   }
+
+  # --- 3. ROUTER FALLBACK: Przekierowanie pozostałych IP (Priorytet 100) ---
+  # Przechwytuje próby wejścia spoza białej listy i odsyła na stronę główną bez pytania o hasło
   labels {
-    label = "traefik.http.services.${var.name}.loadbalancer.server.port"
-    value = "${var.internal_dashboard_port}" # czyli 8080
+    label = "traefik.http.routers.${var.name}-fallback.rule"
+    value = "Host(`${var.server_site_url}`) && PathPrefix(`${var.service_site_path}`)"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-fallback.priority"
+    value = "100"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-fallback.entrypoints"
+    value = var.server_site_protocol == "https" ? "websecure" : "web"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-fallback.tls"
+    value = var.server_site_protocol == "https" ? "true" : "false"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-fallback.service"
+    value = "api@internal"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-fallback.middlewares"
+    value = "${var.name}-redirect-to-root"
   }
 }

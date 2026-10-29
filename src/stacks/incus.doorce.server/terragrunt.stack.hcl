@@ -175,6 +175,7 @@ unit "docker/capp/traefik" {
     service_site_path = "/traefik"
     https_key = local.https_key
     https_cert = local.https_cert
+    ip_white_list = try(yamldecode(file(find_in_parent_folders("config.yaml"))).ip_white_list, null)
     dependencies = {
       network = local.unit_path.network_public
       incus_container_doorce = local.unit_path.incus_container_doorce
@@ -190,6 +191,7 @@ unit "docker/capp/dozzle" {
     server_site_protocol = local.server_site_protocol
     server_site_url = local.server_site_url
     dozzle_site_path = local.dozzle_site_path
+    ip_white_list = try(yamldecode(file(find_in_parent_folders("config.yaml"))).ip_white_list, null)
     dependencies = {
       network = local.unit_path.network_public
       # traefik = local.unit_path.container_traefik
@@ -206,6 +208,7 @@ unit "docker/capp/keycloak" {
     name = "keycloak"
     server_site_protocol = local.server_site_protocol
     server_site_url = local.server_site_url
+    ip_white_list = try(yamldecode(file(find_in_parent_folders("config.yaml"))).ip_white_list, null)
     dependencies = {
       network = local.unit_path.network_public
       traefik = local.unit_path.container_traefik
@@ -304,6 +307,7 @@ unit "docker/capp/ckan/base" {
     name = "ckan-base"
     server_site_protocol = local.server_site_protocol
     server_site_url = local.server_site_url
+    ip_white_list = try(yamldecode(file(find_in_parent_folders("config.yaml"))).ip_white_list, null)
     dependencies = {
       network_ckan_solr = local.unit_path.network_ckan_solr
       network_ckan_redis = local.unit_path.network_ckan_redis
@@ -462,6 +466,7 @@ unit "docker/capp/doorce/portal" {
     server_site_url = local.server_site_url
     image_version = try(yamldecode(file(find_in_parent_folders("config.yaml"))).doorce_portal.version, null)
     container_enabled = try(yamldecode(file(find_in_parent_folders("config.yaml"))).doorce_portal.deploy, null)
+    ip_white_list = try(yamldecode(file(find_in_parent_folders("config.yaml"))).ip_white_list, null)
     dependencies = {
       network = local.unit_path.network_public
       container_doorce_mware = local.unit_path.container_doorce_mware

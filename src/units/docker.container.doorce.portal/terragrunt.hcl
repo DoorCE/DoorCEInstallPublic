@@ -43,4 +43,5 @@ inputs = {
   ]
   ssh_host = dependency.incus_container_doorce.outputs.ipv4_address
   container_enabled = try(values.container_enabled, null)
+  ip_white_list = values.ip_white_list
 }

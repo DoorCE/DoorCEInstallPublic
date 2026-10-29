@@ -42,5 +42,6 @@ inputs = {
   )
   network_public = dependency.network.outputs.name
   ssh_host = dependency.incus_container_doorce.outputs.ipv4_address
+  ip_white_list = values.ip_white_list
 }
 

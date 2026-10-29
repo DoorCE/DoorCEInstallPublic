@@ -69,45 +69,6 @@ resource "docker_container" "this" {
     }
   }
 
-  # Enable Traefik for this container
-  labels {
-    label = "traefik.enable"
-    value = "true"
-  }
-
-  labels {
-    label = "traefik.http.routers.${var.name}.rule"
-    value = "Host(\"${var.server_site_url}\") && PathPrefix(\"${var.service_site_path}\")"
-  }
-
-  labels {
-    label = "traefik.http.routers.${var.name}.entrypoints"
-    value = var.server_site_protocol == "https" ? "websecure" : "web"
-  }
-
-  labels {
-    label = "traefik.http.routers.${var.name}.tls"
-    value = var.server_site_protocol == "https" ? "true" : "false"
-  }
-  
-  labels {
-    label = "traefik.http.services.${var.name}.loadbalancer.server.port"
-    value = "${var.internal_port}"
-  }
-
-  labels {
-    label = "traefik.http.routers.${var.name}.middlewares"
-    value = var.service_site_path  # Nazwa middleware
-  }
-
-  labels {
-    # Definicja middleware
-    label = "traefik.http.middlewares.${var.service_site_path}.stripprefix.prefixes"
-    value = var.service_site_path # Prefiks do usunięcia
-  }
-
-
-
   healthcheck {
     test     = ["CMD", "wget", "-qO", "/dev/null", "http://localhost:5000/api/action/status_show"]
     interval = "1m0s" # Time between health checks
@@ -195,4 +156,172 @@ resource "docker_container" "this" {
     # "CKAN___CKAN__HARVEST__MQ__PORT=${var.redis_container_port}",
     # "CKAN___CKAN__HARVEST__MQ__REDIS_DB=1",
   ]
+
+  # ============================================================================
+  # TRAEFIK CONFIGURATION FOR CKAN
+  # ============================================================================
+
+  labels {
+    label = "traefik.enable"
+    value = "true"
+  }
+
+  labels {
+    label = "traefik.http.services.${var.name}.loadbalancer.server.port"
+    value = "${var.internal_port}"
+  }
+
+  # --- 1. DEFINICJE WSPÓŁDZIELONYCH MIDDLEWARES ---
+
+  # Usuwanie prefiksu /ckan przed przekazaniem zapytania do backendu
+  labels {
+    label = "traefik.http.middlewares.${var.service_site_path}-stripper.stripprefix.prefixes"
+    value = var.service_site_path
+  }
+
+  # Przekierowanie fallback 302 (nieuprawnione IP -> strona główna CKAN)
+  labels {
+    label = "traefik.http.middlewares.${var.name}-redirect-to-portal.redirectregex.regex"
+    value = "^.*$"
+  }
+  labels {
+    label = "traefik.http.middlewares.${var.name}-redirect-to-portal.redirectregex.replacement"
+    value = "${var.server_site_protocol}://${var.server_site_url}${var.service_site_path}"
+  }
+  labels {
+    label = "traefik.http.middlewares.${var.name}-redirect-to-portal.redirectregex.permanent"
+    value = "false"
+  }
+
+  # Blokada przestarzałych API (dostęp tylko z pętli zwrotnej)
+  labels {
+    label = "traefik.http.middlewares.${var.name}-block-legacy.ipallowlist.sourcerange"
+    value = "127.0.0.1/32"
+  }
+
+  # Ochrona przed przeciążeniem bazy PostgreSQL (np. zrzuty Datastore)
+  labels {
+    label = "traefik.http.middlewares.${var.name}-ratelimit.ratelimit.average"
+    value = "10"
+  }
+  labels {
+    label = "traefik.http.middlewares.${var.name}-ratelimit.ratelimit.period"
+    value = "1m"
+  }
+
+  # --- 2. ROUTER: BLOKADA LEGACY API (Priorytet 400) ---
+  # Całkowicie ucina ruch do starych wersji API v1, v2 oraz narzędzi legacy
+  labels {
+    label = "traefik.http.routers.${var.name}-legacy.rule"
+    value = "Host(`${var.server_site_url}`) && (PathPrefix(`${var.service_site_path}/api/1`) || PathPrefix(`${var.service_site_path}/api/2`) || PathPrefix(`${var.service_site_path}/api/util`))"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-legacy.priority"
+    value = "400"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-legacy.entrypoints"
+    value = var.server_site_protocol == "https" ? "websecure" : "web"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-legacy.tls"
+    value = var.server_site_protocol == "https" ? "true" : "false"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-legacy.middlewares"
+    value = "${var.name}-block-legacy"
+  }
+
+  # --- 3. ROUTER: ŚCIEŻKI KRYTYCZNE DLA ZAUFANYCH IP (Priorytet 300) ---
+  # Panel admina oraz rejestracja otwarte TYLKO dla adresów z var.ip_white_list
+  labels {
+    label = "traefik.http.routers.${var.name}-restricted.rule"
+    value = "Host(`${var.server_site_url}`) && (PathPrefix(`${var.service_site_path}/ckan-admin`) || PathPrefix(`${var.service_site_path}/user/register`)) && (${join(" || ", [for ip in var.ip_white_list : "ClientIP(`${ip}`)"])})"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-restricted.priority"
+    value = "300"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-restricted.entrypoints"
+    value = var.server_site_protocol == "https" ? "websecure" : "web"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-restricted.tls"
+    value = var.server_site_protocol == "https" ? "true" : "false"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-restricted.middlewares"
+    value = "${var.service_site_path}-stripper"
+  }
+
+  # --- 4. ROUTER: FALLBACK DLA ŚCIEŻEK KRYTYCZNYCH (Priorytet 290) ---
+  # Niezaufane IP próbujące wejść na /ckan-admin lub /user/register są przekierowywane na /ckan
+  labels {
+    label = "traefik.http.routers.${var.name}-restricted-fallback.rule"
+    value = "Host(`${var.server_site_url}`) && (PathPrefix(`${var.service_site_path}/ckan-admin`) || PathPrefix(`${var.service_site_path}/user/register`))"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-restricted-fallback.priority"
+    value = "290"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-restricted-fallback.entrypoints"
+    value = var.server_site_protocol == "https" ? "websecure" : "web"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-restricted-fallback.tls"
+    value = var.server_site_protocol == "https" ? "true" : "false"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-restricted-fallback.middlewares"
+    value = "${var.name}-redirect-to-portal"
+  }
+
+  # --- 5. ROUTER: ENDPOINTY WYMAGAJĄCE RATE-LIMITINGU (Priorytet 200) ---
+  # Zabezpieczenie zrzutów Datastore przed atakami wyczerpania zasobów bazy danych
+  labels {
+    label = "traefik.http.routers.${var.name}-heavy.rule"
+    value = "Host(`${var.server_site_url}`) && (PathPrefix(`${var.service_site_path}/datastore/dump`) || PathPrefix(`${var.service_site_path}/api/3/action/datastore_search_sql`))"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-heavy.priority"
+    value = "200"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-heavy.entrypoints"
+    value = var.server_site_protocol == "https" ? "websecure" : "web"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-heavy.tls"
+    value = var.server_site_protocol == "https" ? "true" : "false"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}-heavy.middlewares"
+    value = "${var.name}-ratelimit,${var.service_site_path}-stripper"
+  }
+
+  # --- 6. ROUTER: GŁÓWNY RUCH PUBLICZNY (Priorytet 100) ---
+  # Standardowy dostęp do zbiorów danych, wyszukiwarki i otwartych widoków
+  labels {
+    label = "traefik.http.routers.${var.name}.rule"
+    value = "Host(`${var.server_site_url}`) && PathPrefix(`${var.service_site_path}`)"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}.priority"
+    value = "100"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}.entrypoints"
+    value = var.server_site_protocol == "https" ? "websecure" : "web"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}.tls"
+    value = var.server_site_protocol == "https" ? "true" : "false"
+  }
+  labels {
+    label = "traefik.http.routers.${var.name}.middlewares"
+    value = "${var.service_site_path}-stripper"
+  }
+
 }
