@@ -29,6 +29,8 @@ resource "docker_container" "this" {
   image = docker_image.this.image_id
   restart = "unless-stopped" # Container restart policy
 
+  entrypoint = ["tail", "-f", "/dev/null"]
+
   env = [
 	  # General variables
     "MWARE_URL=${var.middleware_url}",
