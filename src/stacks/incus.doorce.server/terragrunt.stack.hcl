@@ -467,10 +467,15 @@ unit "docker/capp/doorce/portal" {
     image_version = try(yamldecode(file(find_in_parent_folders("config.yaml"))).doorce_portal.version, null)
     container_enabled = try(yamldecode(file(find_in_parent_folders("config.yaml"))).doorce_portal.deploy, null)
     ip_white_list = try(yamldecode(file(find_in_parent_folders("config.yaml"))).ip_white_list, null)
+    grav_admin_username = try(yamldecode(file(find_in_parent_folders("config.yaml"))).doorce_portal.grav_admin_username, null)
+    grav_admin_email = try(yamldecode(file(find_in_parent_folders("config.yaml"))).doorce_portal.grav_admin_email, null)
+    grav_admin_language = try(yamldecode(file(find_in_parent_folders("config.yaml"))).doorce_portal.grav_admin_language, null)
+    grav_admin_fullname = try(yamldecode(file(find_in_parent_folders("config.yaml"))).doorce_portal.grav_admin_fullname, null)
     dependencies = {
       network = local.unit_path.network_public
       container_doorce_mware = local.unit_path.container_doorce_mware
       incus_container_doorce = local.unit_path.incus_container_doorce
+      config_keycloak = local.unit_path.config_keycloak
     }
   }
 }

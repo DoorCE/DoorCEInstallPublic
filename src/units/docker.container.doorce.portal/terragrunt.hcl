@@ -31,6 +31,14 @@ dependency "incus_container_doorce" {
   mock_outputs_merge_strategy_with_state = "shallow"
 }
 
+dependency "config_keycloak" {
+  config_path = find_in_parent_folders(values.dependencies.config_keycloak)
+  mock_outputs = {
+    grav_admin_password = "__mock__"
+  }
+  mock_outputs_merge_strategy_with_state = "shallow"
+}
+
 inputs = {
   name = values.name
   image_version = try(values.image_version, null)
@@ -44,4 +52,9 @@ inputs = {
   ssh_host = dependency.incus_container_doorce.outputs.ipv4_address
   container_enabled = try(values.container_enabled, null)
   ip_white_list = values.ip_white_list
+  grav_admin_username = try(values.grav_admin_username, null)
+  grav_admin_password = dependency.config_keycloak.outputs.grav_admin_password
+  grav_admin_email = try(values.grav_admin_email, null)
+  grav_admin_language = try(values.grav_admin_language, null)
+  grav_admin_fullname = try(values.grav_admin_fullname, null)
 }

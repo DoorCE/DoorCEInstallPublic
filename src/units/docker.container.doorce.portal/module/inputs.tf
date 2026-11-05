@@ -19,7 +19,7 @@ variable "image_name" {
 variable "image_version" {
   description = "Version of the DoorCE Portal container"
   type        = string
-  default     = "ee378b6" # https://hub.docker.com/r/doorceld/doorceportal
+  default     = "2.2.22" # https://hub.docker.com/r/doorceld/doorceportal
   nullable   = false
 }
 
@@ -94,4 +94,38 @@ variable "ip_white_list" {
     "0.0.0.0/0",
   ]
   nullable   = false
+}
+
+variable "grav_admin_username" {
+  type        = string
+  description = "Grav admin username"
+  default     = "admin"
+  nullable    = false
+}
+
+variable "grav_admin_password" {
+  type        = string
+  description = "Grav admin password"
+  sensitive = true
+}
+
+variable "grav_admin_email" {
+  type        = string
+  description = "Grav admin email"
+  default     = "doorce@doorce.net"
+  nullable    = false
+}
+
+variable "grav_admin_language" {
+  type        = string
+  description = "Grav admin language"
+  default     = "en"
+  nullable    = false
+}
+
+variable "grav_admin_fullname" {
+  type        = string
+  description = "Grav admin fullname"
+  default     = "DoorCE Admin"
+  nullable    = false
 }

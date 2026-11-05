@@ -65,7 +65,7 @@ resource "keycloak_openid_user_client_role_protocol_mapper" "dozzle_roles" {
   add_to_access_token         = true
 }
 
-# --- ROLE I UPRAWNIENIA DOZZLE ---
+# --- Permissions for Dozzle client in infra realm  ---
 
 resource "keycloak_role" "dozzle_all" {
   realm_id    = keycloak_realm.infra.id
@@ -142,7 +142,7 @@ resource "keycloak_group_roles" "dozzle_viewer_roles" {
   ]
 }
 
-# --- UŻYTKOWNICY ---
+# --- USERS ---
 
 resource "random_password" "log_admin_password" {
   length  = 32
@@ -200,11 +200,26 @@ resource "keycloak_user_groups" "viewer_membership" {
   ]
 }
 
-# --- PRZYWRÓCONY KLIENT CKAN ADMIN ---
+# --- CKAN ADMIN ---
 
 resource "keycloak_openid_client" "ckan_admin_password" {
   realm_id                 = keycloak_realm.infra.id
   client_id                = "ckan-admin-password"
+  enabled                  = true
+  access_type              = "CONFIDENTIAL"
+  service_accounts_enabled = false
+  use_refresh_tokens       = true
+  standard_flow_enabled    = true
+  valid_redirect_uris = [
+    "http://localhost:8080/callback"
+  ]
+}
+
+# --- GRAV ADMIN ---
+
+resource "keycloak_openid_client" "grav_admin_password" {
+  realm_id                 = keycloak_realm.infra.id
+  client_id                = "grav-admin-password"
   enabled                  = true
   access_type              = "CONFIDENTIAL"
   service_accounts_enabled = false

@@ -306,3 +306,20 @@ The image highlights four key elements with red markers:
 - (3) Copy button: Indicates the small clipboard icon next to the Client Secret. You can click this to easily copy the current password to use it for logging into the CKAN admin panel.
 
 - (4) "Regenerate" button: Highlights the button used to reset and generate a new password. As noted in the instructions, if you use this button, you must run the `DoorCE Setup` workflow again to synchronize the new password with CKAN.
+
+
+
+### Login into Grav Admin Panel
+- Once the installation is complete, you can access the Grav admin panel at `https://<your-domain>/_doorce_admin` using the credentials found in the Keycloak admin console. The default username is `admin` (or the value configured for `grav_admin_username`), and the password is located in the `infra` realm under the `grav-admin-password` client secret. If needed, you can regenerate the password for the Grav admin client within Keycloak. However, doing so requires you to run the `DoorCE Setup` workflow again to synchronize the new password with the Grav admin account.
+
+![GRAV Admin Panel](docs/grav_admin.png)
+
+The image highlights the key elements:
+
+- **"Clients" menu**: Section in the left navigation panel where you can access the clients for your `Infrastructure Management` (`infra`) realm.
+
+- **"grav-admin-password" client**: The client dedicated to storing the admin password under the **Credentials** tab.
+
+- **"Client Secret" field**: Shows the masked password. You can click the copy icon next to it to easily copy the current password to use it for logging into the Grav admin panel at `https://<your-domain>/_doorce_admin`.
+
+- **"Regenerate" button**: Used to reset and generate a new password. If you regenerate the secret, remember to re-run the `DoorCE Setup` workflow to apply the change to the container.
