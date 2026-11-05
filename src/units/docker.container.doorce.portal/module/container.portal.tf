@@ -29,10 +29,17 @@ resource "docker_container" "this" {
   image = docker_image.this.image_id
   restart = "unless-stopped" # Container restart policy
 
+  # entrypoint = ["tail", "-f", "/dev/null"]
+
   env = [
 	  # General variables
     "MWARE_URL=${var.middleware_url}",
     "CODE_HELPER_URL=${var.server_site_protocol}://${var.server_site_url}/codehelper/",
+    "GRAV_ADMIN_USERNAME=${var.grav_admin_username}",
+    "GRAV_ADMIN_PASSWORD=${var.grav_admin_password}",
+    "GRAV_ADMIN_EMAIL=${var.grav_admin_email}",
+    "GRAV_ADMIN_LANGUAGE=${var.grav_admin_language}",
+    "GRAV_ADMIN_FULLNAME=${var.grav_admin_fullname}",
   ]
 
   dynamic "networks_advanced" {
@@ -102,10 +109,10 @@ resource "docker_container" "this" {
   }
 
   # --- 3. ROUTER: PANEL ADMINA DLA ZAUFANYCH IP (Priorytet 200) ---
-  # Dozwolone adresy IP wchodzą bezpośrednio do /admin
+  # Dozwolone adresy IP wchodzą bezpośrednio do /_doorce_admin
   labels {
     label = "traefik.http.routers.${var.name}-admin.rule"
-    value = "Host(`${var.server_site_url}`) && PathPrefix(`/admin`) && (${join(" || ", [for ip in var.ip_white_list : "ClientIP(`${ip}`)"])})"
+    value = "Host(`${var.server_site_url}`) && PathPrefix(`/_doorce_admin`) && (${join(" || ", [for ip in var.ip_white_list : "ClientIP(`${ip}`)"])})"
   }
   labels {
     label = "traefik.http.routers.${var.name}-admin.priority"
@@ -121,10 +128,10 @@ resource "docker_container" "this" {
   }
 
   # --- 4. ROUTER: FALLBACK DLA ADMINA (Priorytet 190) ---
-  # Nieuprawnione IP próbujące wejść na /admin zostają odesłane na stronę główną /
+  # Nieuprawnione IP próbujące wejść na /_doorce_admin zostają odesłane na stronę główną /
   labels {
     label = "traefik.http.routers.${var.name}-admin-fallback.rule"
-    value = "Host(`${var.server_site_url}`) && PathPrefix(`/admin`)"
+    value = "Host(`${var.server_site_url}`) && PathPrefix(`/_doorce_admin`)"
   }
   labels {
     label = "traefik.http.routers.${var.name}-admin-fallback.priority"

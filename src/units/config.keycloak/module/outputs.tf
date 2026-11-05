@@ -16,6 +16,12 @@ output "ckan_admin_password" {
   sensitive   = true
 }
 
+output "grav_admin_password" {
+  description = "The client secret for the Grav admin password client"
+  value       = keycloak_openid_client.grav_admin_password.client_secret
+  sensitive   = true
+}
+
 output "dozzle_client_secret" {
   value     = random_password.dozzle_client_secret.result
   sensitive = true
