@@ -20,9 +20,19 @@ resource "docker_image" "this" {
   }
 }
 
+resource "docker_volume" "storage" {
+  name = "${var.name}.storage"
+}
+
 resource "docker_container" "this" {
   lifecycle {
     enabled = var.container_enabled
+  }
+
+  volumes {
+    container_path = "/var/www/html"
+    volume_name    = docker_volume.storage.name
+    read_only     = false
   }
 
   name  = var.name
