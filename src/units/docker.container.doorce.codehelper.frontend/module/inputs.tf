@@ -44,7 +44,7 @@ variable "image_name" {
 variable "image_version" {
   description = "Version of the DoorCE CodeHelper Frontend container"
   type        = string
-  default     = "2026-08-10" #  https://hub.docker.com/r/alex1989d/doorce-codehelper-streamlit --- IGNORE ---
+  default     = "visualization-basic-20261112" #  https://hub.docker.com/r/alex1989d/doorce-codehelper-streamlit --- IGNORE ---
   nullable   = false  
 }
 

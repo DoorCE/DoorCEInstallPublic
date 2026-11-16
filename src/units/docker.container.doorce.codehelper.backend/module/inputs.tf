@@ -47,7 +47,7 @@ variable "image_name" {
 variable "image_version" {
   description = "Version tag for the container image (e.g., db53811)"
   type        = string
-  default     = "2026-08-10" # https://hub.docker.com/r/alex1989d/doorce-codehelper-backend
+  default     = "visualization-basic-20261112" # https://hub.docker.com/r/alex1989d/doorce-codehelper-backend
   nullable   = false
 }
 

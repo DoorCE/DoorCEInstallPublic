@@ -44,7 +44,7 @@ variable "image_name" {
 variable "image_version" {
   description = "Version of the Doorce Platform container"
   type        = string
-  default     = "93f67ac" # https://hub.docker.com/r/doorce/doorceplatform
+  default     = "f4983c7" # https://hub.docker.com/r/doorce/doorceplatform
   nullable   = false
 }
 
