@@ -76,6 +76,7 @@ resource "docker_container" "this" {
     done
 
     CLIENT_ID=$(jq -r '.clients[0].clientId' /opt/keycloak/data/import/realm-master.json)
+    CLIENT_SECRET=$(jq -r '.clients[0].secret' /opt/keycloak/data/import/realm-master.json)
 
     /opt/keycloak/bin/kcadm.sh config credentials \
       --server http://localhost:8080 \
@@ -84,6 +85,7 @@ resource "docker_container" "this" {
       --secret "$KC_BOOTSTRAP_ADMIN_PASSWORD"
 
     CLIENT_UUID=$(/opt/keycloak/bin/kcadm.sh get clients -r master -q clientId="$CLIENT_ID" --fields id | jq -r '.[0].id')
+    MASTER_REALM_CLIENT_UUID=$(/opt/keycloak/bin/kcadm.sh get clients -r master -q clientId=master-realm --fields id | jq -r '.[0].id')
 
     /opt/keycloak/bin/kcadm.sh update "clients/$CLIENT_UUID" -r master -s fullScopeAllowed=false
 
@@ -105,12 +107,24 @@ resource "docker_container" "this" {
 
     SA_USERNAME=$(echo "service-account-$CLIENT_ID" | tr '[:upper:]' '[:lower:]')
     /opt/keycloak/bin/kcadm.sh add-roles --uusername "$SA_USERNAME" --rolename admin -r master || true
-    /opt/keycloak/bin/kcadm.sh add-roles --uusername "$SA_USERNAME" --cclientid master-realm --rolename admin -r master || true
+
+    for ROLE in $(/opt/keycloak/bin/kcadm.sh get "clients/$MASTER_REALM_CLIENT_UUID/roles" -r master --fields name | jq -r '.[].name'); do
+      /opt/keycloak/bin/kcadm.sh add-roles --uusername "$SA_USERNAME" --cclientid master-realm --rolename "$ROLE" -r master || true
+    done
+
+    MASTER_ROLES_JSON=$(/opt/keycloak/bin/kcadm.sh get "clients/$MASTER_REALM_CLIENT_UUID/roles" -r master)
+    echo "$MASTER_ROLES_JSON" | /opt/keycloak/bin/kcadm.sh create "clients/$CLIENT_UUID/scope-mappings/clients/$MASTER_REALM_CLIENT_UUID" -r master -f - || true
 
     BOOTSTRAP_UUID=$(/opt/keycloak/bin/kcadm.sh get clients -r master -q clientId=bootstrap-admin --fields id | jq -r '.[0].id')
     if [ -n "$BOOTSTRAP_UUID" ] && [ "$BOOTSTRAP_UUID" != "null" ]; then
       /opt/keycloak/bin/kcadm.sh delete "clients/$BOOTSTRAP_UUID" -r master || true
     fi
+
+    TOKEN=$(curl -sf -X POST "http://localhost:8080/realms/master/protocol/openid-connect/token" \
+      -d "grant_type=client_credentials" \
+      -d "client_id=$CLIENT_ID" \
+      -d "client_secret=$CLIENT_SECRET" | jq -r '.access_token')
+    echo "DEBUG_JWT_PAYLOAD: $(echo "$TOKEN" | cut -d'.' -f2 | tr '_-' '/+' | base64 -d 2>/dev/null || true)"
 
     wait $KC_PID
     EOT
