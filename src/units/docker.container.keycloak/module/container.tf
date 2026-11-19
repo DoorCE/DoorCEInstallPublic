@@ -44,7 +44,7 @@ resource "docker_container" "this" {
   }
 
 
-env = [
+  env = [
     "KC_DB=dev-file",
     "KC_HTTP_ENABLED=true",
     "KC_CACHE=local",
@@ -64,7 +64,7 @@ env = [
     echo "$KC_IMPORT_CONTENT_B64" | base64 -d | gzip -d | jq -r > /opt/keycloak/data/import/realm-master.json
     unset KC_IMPORT_CONTENT_B64
 
-    /opt/keycloak/bin/kc.sh bootstrap-admin user --username:env KC_BOOTSTRAP_ADMIN_USERNAME --password:env KC_BOOTSTRAP_ADMIN_PASSWORD || true
+    /opt/keycloak/bin/kc.sh bootstrap-admin service --client-id bootstrap-admin --client-secret:env KC_BOOTSTRAP_ADMIN_PASSWORD || true
 
     /opt/keycloak/bin/kc.sh start --import-realm &
     KC_PID=$!
@@ -80,8 +80,8 @@ env = [
     /opt/keycloak/bin/kcadm.sh config credentials \
       --server http://localhost:8080 \
       --realm master \
-      --user "$KC_BOOTSTRAP_ADMIN_USERNAME" \
-      --password "$KC_BOOTSTRAP_ADMIN_PASSWORD"
+      --client bootstrap-admin \
+      --secret "$KC_BOOTSTRAP_ADMIN_PASSWORD"
 
     CLIENT_UUID=$(/opt/keycloak/bin/kcadm.sh get clients -r master -q clientId="$CLIENT_ID" --fields id | jq -r '.[0].id')
 
@@ -100,6 +100,11 @@ env = [
 
     SA_USERNAME=$(echo "service-account-$CLIENT_ID" | tr '[:upper:]' '[:lower:]')
     /opt/keycloak/bin/kcadm.sh add-roles --uusername "$SA_USERNAME" --rolename admin -r master || true
+
+    BOOTSTRAP_UUID=$(/opt/keycloak/bin/kcadm.sh get clients -r master -q clientId=bootstrap-admin --fields id | jq -r '.[0].id')
+    if [ -n "$BOOTSTRAP_UUID" ] && [ "$BOOTSTRAP_UUID" != "null" ]; then
+      /opt/keycloak/bin/kcadm.sh delete "clients/$BOOTSTRAP_UUID" -r master || true
+    fi
 
     wait $KC_PID
     EOT
