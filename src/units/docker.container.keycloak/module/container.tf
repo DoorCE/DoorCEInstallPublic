@@ -87,6 +87,11 @@ resource "docker_container" "this" {
 
     /opt/keycloak/bin/kcadm.sh update "clients/$CLIENT_UUID" -r master -s fullScopeAllowed=false
 
+    ROLES_SCOPE_ID=$(/opt/keycloak/bin/kcadm.sh get client-scopes -r master --fields id,name | jq -r '.[] | select(.name=="roles") | .id')
+    if [ -n "$ROLES_SCOPE_ID" ]; then
+      /opt/keycloak/bin/kcadm.sh update "clients/$CLIENT_UUID/default-client-scopes/$ROLES_SCOPE_ID" -r master || true
+    fi
+
     if ! /opt/keycloak/bin/kcadm.sh get "clients/$CLIENT_UUID/protocol-mappers/models" -r master | grep -q "admin-api-audience"; then
       /opt/keycloak/bin/kcadm.sh create "clients/$CLIENT_UUID/protocol-mappers/models" -r master \
         -s name=admin-api-audience \
