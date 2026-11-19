@@ -60,9 +60,9 @@ resource "docker_container" "this" {
 
   entrypoint = ["/bin/sh", "-c"]
   command = [
-    "echo $KC_IMPORT_CONTENT_B64 | base64 -d | gzip -d | jq -r > /opt/keycloak/data/import/realm-master.json && export KC_IMPORT_CONTENT_B64='' && unset KC_IMPORT_CONTENT_B64 && /opt/keycloak/bin/kc.sh start --import-realm"
+    "echo $KC_IMPORT_CONTENT_B64 | base64 -d | gzip -d | jq -r > /opt/keycloak/data/import/realm-master.json && export KC_IMPORT_CONTENT_B64='' && unset KC_IMPORT_CONTENT_B64 && /opt/keycloak/bin/kc.sh import --file /opt/keycloak/data/import/realm-master.json --override=true && /opt/keycloak/bin/kc.sh start"
   ]
-  
+
   healthcheck {
     test         = ["CMD-SHELL", "curl -f -s http://localhost:9000/health || exit 1"]
     interval     = "10s"
