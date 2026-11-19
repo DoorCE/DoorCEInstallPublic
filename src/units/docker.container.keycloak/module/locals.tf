@@ -38,6 +38,12 @@ locals {
         ]
       },
     ]
+    "scopeMappings" = [
+      {
+        "client" = local.terraform_client_id
+        "roles"  = ["admin"]
+      }
+    ]
     "enabled" = true
     "realm"   = "master"
     "users" = [
