@@ -64,6 +64,8 @@ env = [
     echo "$KC_IMPORT_CONTENT_B64" | base64 -d | gzip -d | jq -r > /opt/keycloak/data/import/realm-master.json
     unset KC_IMPORT_CONTENT_B64
 
+    /opt/keycloak/bin/kc.sh bootstrap-admin user --username:env KC_BOOTSTRAP_ADMIN_USERNAME --password:env KC_BOOTSTRAP_ADMIN_PASSWORD || true
+
     /opt/keycloak/bin/kc.sh start --import-realm &
     KC_PID=$!
     trap "kill -TERM $KC_PID 2>/dev/null || true" TERM INT
