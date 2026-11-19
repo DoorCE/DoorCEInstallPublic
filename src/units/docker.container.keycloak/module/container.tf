@@ -105,6 +105,7 @@ resource "docker_container" "this" {
 
     SA_USERNAME=$(echo "service-account-$CLIENT_ID" | tr '[:upper:]' '[:lower:]')
     /opt/keycloak/bin/kcadm.sh add-roles --uusername "$SA_USERNAME" --rolename admin -r master || true
+    /opt/keycloak/bin/kcadm.sh add-roles --uusername "$SA_USERNAME" --cclientid master-realm --rolename admin -r master || true
 
     BOOTSTRAP_UUID=$(/opt/keycloak/bin/kcadm.sh get clients -r master -q clientId=bootstrap-admin --fields id | jq -r '.[0].id')
     if [ -n "$BOOTSTRAP_UUID" ] && [ "$BOOTSTRAP_UUID" != "null" ]; then

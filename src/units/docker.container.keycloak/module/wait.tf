@@ -22,6 +22,7 @@ resource "terraform_data" "keycloak_wait_complete" {
         STATUS=$(curl -Ls -o /dev/null -w "%%{http_code}" -k "$URL")
 
         if [ "$STATUS" = "200" ]; then
+          sleep 10
           echo "SUCCESS: Keycloak returned 200 OK at $URL"
           exit 0
         fi
