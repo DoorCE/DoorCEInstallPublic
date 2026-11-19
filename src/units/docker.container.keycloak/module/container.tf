@@ -44,18 +44,18 @@ resource "docker_container" "this" {
   }
 
 
-  env = [
+env = [
     "KC_DB=dev-file",
     "KC_HTTP_ENABLED=true",
     "KC_CACHE=local",
-    "KC_PROXY_HEADERS=forwarded", # Use forwarded headers for proxying
-    "KC_HOSTNAME=${local.public_site_url}", # Set the hostname for Keycloak
+    "KC_PROXY_HEADERS=forwarded",
+    "KC_HOSTNAME=${local.public_site_url}",
     "KC_HEALTH_ENABLED=true",
     "KC_LOG_LEVEL=INFO",
     "KC_METRICS_ENABLED=true",
     "KC_IMPORT_CONTENT_B64=${base64gzip(jsonencode(local.keycloak_terraform_client))}",
-    # "KC_BOOTSTRAP_ADMIN_USERNAME=ad",
-    # "KC_BOOTSTRAP_ADMIN_PASSWORD=aa",
+    "KC_BOOTSTRAP_ADMIN_USERNAME=${var.keycloak_admin_username}",
+    "KC_BOOTSTRAP_ADMIN_PASSWORD=${var.keycloak_admin_password}",
   ]
 
   entrypoint = ["/bin/sh", "-c"]
@@ -74,9 +74,13 @@ resource "docker_container" "this" {
     done
 
     CLIENT_ID=$(jq -r '.clients[0].clientId' /opt/keycloak/data/import/realm-master.json)
-    CLIENT_SECRET=$(jq -r '.clients[0].secret' /opt/keycloak/data/import/realm-master.json)
 
-    /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --client "$CLIENT_ID" --secret "$CLIENT_SECRET"
+    /opt/keycloak/bin/kcadm.sh config credentials \
+      --server http://localhost:8080 \
+      --realm master \
+      --user "$KC_BOOTSTRAP_ADMIN_USERNAME" \
+      --password "$KC_BOOTSTRAP_ADMIN_PASSWORD"
+
     CLIENT_UUID=$(/opt/keycloak/bin/kcadm.sh get clients -r master -q clientId="$CLIENT_ID" --fields id | jq -r '.[0].id')
 
     /opt/keycloak/bin/kcadm.sh update "clients/$CLIENT_UUID" -r master -s fullScopeAllowed=false
@@ -91,6 +95,9 @@ resource "docker_container" "this" {
         -s 'config."id.token.claim"=false' \
         -s 'config."access.token.claim"=true'
     fi
+
+    SA_USERNAME=$(echo "service-account-$CLIENT_ID" | tr '[:upper:]' '[:lower:]')
+    /opt/keycloak/bin/kcadm.sh add-roles --uusername "$SA_USERNAME" --rolename admin -r master || true
 
     wait $KC_PID
     EOT

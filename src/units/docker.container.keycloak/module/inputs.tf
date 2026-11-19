@@ -100,3 +100,15 @@ variable "ip_white_list" {
   ]
   nullable   = false
 }
+
+variable "keycloak_admin_username" {
+  description = "Keycloak admin username from GitHub secrets"
+  type        = string
+  sensitive   = true
+}
+
+variable "keycloak_admin_password" {
+  description = "Keycloak admin password from GitHub secrets"
+  type        = string
+  sensitive   = true
+}

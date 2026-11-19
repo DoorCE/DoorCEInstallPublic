@@ -44,4 +44,6 @@ inputs = {
   server_site_url = dependency.traefik.outputs.server_site_url
   service_site_path = try(values.service_site_path, null)
   ssh_host = dependency.incus_container_doorce.outputs.ipv4_address
+  keycloak_admin_username = try(values.keycloak_admin_username, null)
+  keycloak_admin_password = try(values.keycloak_admin_password, null)
 }

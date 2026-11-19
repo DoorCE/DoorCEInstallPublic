@@ -209,6 +209,8 @@ unit "docker/capp/keycloak" {
     server_site_protocol = local.server_site_protocol
     server_site_url = local.server_site_url
     ip_white_list = try(yamldecode(file(find_in_parent_folders("config.yaml"))).ip_white_list, null)
+    keycloak_admin_username = local.keycloak_admin_username
+    keycloak_admin_password = local.keycloak_admin_password
     dependencies = {
       network = local.unit_path.network_public
       traefik = local.unit_path.container_traefik
