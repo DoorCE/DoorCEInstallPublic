@@ -60,7 +60,40 @@ resource "docker_container" "this" {
 
   entrypoint = ["/bin/sh", "-c"]
   command = [
-    "echo $KC_IMPORT_CONTENT_B64 | base64 -d | gzip -d | jq -r > /opt/keycloak/data/import/realm-master.json && export KC_IMPORT_CONTENT_B64='' && unset KC_IMPORT_CONTENT_B64 && /opt/keycloak/bin/kc.sh import --file /opt/keycloak/data/import/realm-master.json --override=true && /opt/keycloak/bin/kc.sh start"
+    <<-EOT
+    echo "$KC_IMPORT_CONTENT_B64" | base64 -d | gzip -d | jq -r > /opt/keycloak/data/import/realm-master.json
+    unset KC_IMPORT_CONTENT_B64
+
+    /opt/keycloak/bin/kc.sh start --import-realm &
+    KC_PID=$!
+    trap "kill -TERM $KC_PID 2>/dev/null || true" TERM INT
+
+    until curl -sf http://localhost:9000/health/ready > /dev/null 2>&1; do
+      kill -0 $KC_PID 2>/dev/null || exit 1
+      sleep 2
+    done
+
+    CLIENT_ID=$(jq -r '.clients[0].clientId' /opt/keycloak/data/import/realm-master.json)
+    CLIENT_SECRET=$(jq -r '.clients[0].secret' /opt/keycloak/data/import/realm-master.json)
+
+    /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --client "$CLIENT_ID" --secret "$CLIENT_SECRET"
+    CLIENT_UUID=$(/opt/keycloak/bin/kcadm.sh get clients -r master -q clientId="$CLIENT_ID" --fields id | jq -r '.[0].id')
+
+    /opt/keycloak/bin/kcadm.sh update "clients/$CLIENT_UUID" -r master -s fullScopeAllowed=false
+
+    if ! /opt/keycloak/bin/kcadm.sh get "clients/$CLIENT_UUID/protocol-mappers/models" -r master | grep -q "admin-api-audience"; then
+      /opt/keycloak/bin/kcadm.sh create "clients/$CLIENT_UUID/protocol-mappers/models" -r master \
+        -s name=admin-api-audience \
+        -s protocol=openid-connect \
+        -s protocolMapper=oidc-audience-mapper \
+        -s consentRequired=false \
+        -s 'config."included.client.audience"=master-realm' \
+        -s 'config."id.token.claim"=false' \
+        -s 'config."access.token.claim"=true'
+    fi
+
+    wait $KC_PID
+    EOT
   ]
 
   healthcheck {
