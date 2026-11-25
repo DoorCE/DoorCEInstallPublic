@@ -18,7 +18,7 @@ variable "image_name" {
 variable "image_version" {
   description = "Version of the Doorce Mware container"
   type        = string
-  default     = "2b22679"
+  default     = "1450391" # https://hub.docker.com/r/doorceld/doorcemware
   nullable   = false
 }
 
