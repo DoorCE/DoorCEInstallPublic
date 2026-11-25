@@ -42,7 +42,7 @@ terraform {
     }
     keycloak = {
       source  = "keycloak/keycloak"
-      version = "~> 5.6"
+      version = "~> 5.11"
     }
     incus = {
       source = "lxc/incus"

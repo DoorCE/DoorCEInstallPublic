@@ -19,7 +19,7 @@ variable "container_image" {
 variable "container_version" {
   description = "Version of the Dozzle container"
   type        = string
-  default     = "v11.3.5"  # https://github.com/amir20/dozzle/releases
+  default     = "v11.5.0"  # https://github.com/amir20/dozzle/releases
   nullable   = false
 }
 

@@ -60,7 +60,12 @@ resource "docker_container" "this" {
 
   entrypoint = ["/bin/sh", "-c"]
   command = [
-    "echo $KC_IMPORT_CONTENT_B64 | base64 -d | gzip -d | jq -r > /opt/keycloak/data/import/realm-master.json && export KC_IMPORT_CONTENT_B64='' && unset KC_IMPORT_CONTENT_B64 && /opt/keycloak/bin/kc.sh start --import-realm"
+    <<-EOT
+    echo "$KC_IMPORT_CONTENT_B64" | base64 -d | gzip -d | jq -r > /opt/keycloak/data/import/realm-master.json \
+      && export KC_IMPORT_CONTENT_B64='' \
+      && unset KC_IMPORT_CONTENT_B64 \
+      && /opt/keycloak/bin/kc.sh start --import-realm
+    EOT
   ]
   
   healthcheck {
