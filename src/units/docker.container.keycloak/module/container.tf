@@ -48,20 +48,19 @@ resource "docker_container" "this" {
     "KC_DB=dev-file",
     "KC_HTTP_ENABLED=true",
     "KC_CACHE=local",
-    "KC_PROXY_HEADERS=forwarded", # Use forwarded headers for proxying
-    "KC_HOSTNAME=${local.public_site_url}", # Set the hostname for Keycloak
+    "KC_PROXY_HEADERS=xforwarded",
+    "KC_HOSTNAME=${local.public_site_url}",
+    "KC_HTTP_RELATIVE_PATH=${var.service_site_path}",
     "KC_HEALTH_ENABLED=true",
     "KC_LOG_LEVEL=INFO",
     "KC_METRICS_ENABLED=true",
     "KC_IMPORT_CONTENT_B64=${base64gzip(jsonencode(local.keycloak_terraform_client))}",
-    # "KC_BOOTSTRAP_ADMIN_USERNAME=ad",
-    # "KC_BOOTSTRAP_ADMIN_PASSWORD=aa",
   ]
 
   entrypoint = ["/bin/sh", "-c"]
   command = [
     <<-EOT
-    echo "$KC_IMPORT_CONTENT_B64" | base64 -d | gzip -d | jq -r > /opt/keycloak/data/import/realm-master.json \
+    echo "$KC_IMPORT_CONTENT_B64" | base64 -d | gzip -d | jq -r '.' > /opt/keycloak/data/import/realm-master.json \
       && export KC_IMPORT_CONTENT_B64='' \
       && unset KC_IMPORT_CONTENT_B64 \
       && /opt/keycloak/bin/kc.sh start --import-realm
@@ -69,7 +68,7 @@ resource "docker_container" "this" {
   ]
   
   healthcheck {
-    test         = ["CMD-SHELL", "curl -f -s http://localhost:9000/health || exit 1"]
+    test         = ["CMD-SHELL", "curl -f -s http://localhost:9000${var.service_site_path}/health || exit 1"]
     interval     = "10s"
     timeout      = "5s"
     retries      = 3
@@ -91,12 +90,6 @@ resource "docker_container" "this" {
   }
 
   # --- 1. DEFINICJE MIDDLEWARES ---
-
-  # Usuwanie prefiksu /keycloak przed przekazaniem do kontenera
-  labels {
-    label = "traefik.http.middlewares.${var.service_site_path}-stripper.stripprefix.prefixes"
-    value = var.service_site_path
-  }
 
   # Przekierowanie fallback 302 na stronę główną dla niepowołanych IP
   labels {
@@ -129,10 +122,6 @@ resource "docker_container" "this" {
   labels {
     label = "traefik.http.routers.${var.name}-restricted.tls"
     value = var.server_site_protocol == "https" ? "true" : "false"
-  }
-  labels {
-    label = "traefik.http.routers.${var.name}-restricted.middlewares"
-    value = "${var.service_site_path}-stripper@docker"
   }
 
   # --- 3. ROUTER: FALLBACK DLA ŚCIEŻEK KRYTYCZNYCH (Priorytet 290) ---
@@ -175,9 +164,5 @@ resource "docker_container" "this" {
   labels {
     label = "traefik.http.routers.${var.name}.tls"
     value = var.server_site_protocol == "https" ? "true" : "false"
-  }
-  labels {
-    label = "traefik.http.routers.${var.name}.middlewares"
-    value = "${var.service_site_path}-stripper@docker"
   }
 }

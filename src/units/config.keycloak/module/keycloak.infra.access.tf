@@ -40,7 +40,7 @@ resource "keycloak_openid_client" "dozzle" {
   ]
 }
 
-resource "keycloak_openid_client_default_scopes" "dozzle_scopes" {
+resource "keycloak_client_scope_assignments" "dozzle_scopes" {
   realm_id  = keycloak_realm.infra.id
   client_id = keycloak_openid_client.dozzle.id
 
@@ -50,6 +50,8 @@ resource "keycloak_openid_client_default_scopes" "dozzle_scopes" {
     "roles",
     "web-origins"
   ]
+
+  optional_scopes = []
 }
 
 # Mapowanie ról klienta do pola "roles" w ID Tokenie oraz UserInfo dla Dozzle

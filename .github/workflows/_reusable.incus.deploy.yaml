@@ -124,6 +124,12 @@ jobs:
           which tofu
           tofu version
 
+      - name: Migrate Keycloak 26.8.1 -> 26.8.2 (kc-admin-api)
+        if: inputs.action == 'apply'
+        run: |
+          chmod +x DoorCEInstallPublic/scripts/migrate-keycloak-26.8.2.sh
+          ./DoorCEInstallPublic/scripts/migrate-keycloak-26.8.2.sh "${{ matrix.zone }}" "DoorCEInstallPublic/config.yaml"
+
       - name: 🏗️ Run Terragrunt Stack
         working-directory: DoorCEInstallPublic/stacks
         run: |
