@@ -27,7 +27,8 @@ on:
 
 jobs:
   call-reusable-workflow:
-    uses: DoorCE/DoorCEInstallPublic/.github/workflows/doorce.setup.yaml@v1.1.20
+    # Wywołujemy zawsze najnowszą logikę z main
+    uses: DoorCE/DoorCEInstallPublic/.github/workflows/host.setup.yaml@v1.1.20
     with:
       action: ${{ github.event.inputs.action || 'plan' }}
       reason: ${{ github.event.inputs.reason || format('Push to {0}', github.ref_name) }}
